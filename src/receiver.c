@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 #include "log.h"
+#include "packet_interface.h"
+
 
 int print_usage(char *prog_name) {
     ERROR("Usage:\n\t%s [-s stats_filename] listen_ip listen_port", prog_name);

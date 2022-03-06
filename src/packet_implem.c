@@ -84,7 +84,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 		uint32_t decoder_timestamp=*((uint32_t *) ((uint8_t *) data + 4));
 		etat = pkt_set_timestamp(pkt, decoder_timestamp);
 		if (etat != PKT_OK) {return etat;}
-		//CRC1 dans un fichier PTYPE_DATA pas sûr pas sûr pas sûr pas sûr pas sûr pas sûr
+		//CRC1 dans un fichier PTYPE_DATA 
 		uint32_t decoder_CRC1;
 		memcpy(&decoder_CRC1, data + 8, 4);
 		decoder_CRC1=ntohl(decoder_CRC1);
@@ -123,7 +123,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 		}
 	}
 	else{
-		//Length en dehors d'un fichier PTYPE_DATA (ce chant n'est pas présent dans data et dois être mis à 0.
+		//Length en dehors d'un fichier PTYPE_DATA 
 		etat=pkt_set_length(pkt,0);
 		if(etat != PKT_OK){return etat;}
 		//seqnum en dehors d'un fichier PTYPE_DATA
@@ -134,7 +134,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 		uint32_t decoder_timestamp=*((uint32_t *) ((uint8_t *) data + 2));
 		etat = pkt_set_timestamp(pkt, decoder_timestamp);
 		if (etat != PKT_OK) {return etat;}
-		//CRC1 en dehors d'un fichier PTYPE_DATA pas sûr pas sûr pas sûr pas sûr pas sûr pas sûr
+		//CRC1 en dehors d'un fichier PTYPE_DATA
 		uint32_t decoder_CRC1;
 		memcpy(&decoder_CRC1, data + 6, sizeof(uint32_t));
 		decoder_CRC1=ntohl(decoder_CRC1);
@@ -147,7 +147,6 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 	return PKT_OK;
 }
 
-// l'énoncé original seble faux car c'est: pkt_status_code pkt_encode(const pkt_t*, char *buf, size_t *len)
 pkt_status_code pkt_encode(const pkt_t *pkt, char *buf, size_t *len) {
     ssize_t taille_tete = predict_header_length(pkt);
     if (taille_tete < 6) {
@@ -244,7 +243,9 @@ uint32_t pkt_get_crc1   (const pkt_t* pkt)
 uint32_t pkt_get_crc2   (const pkt_t* pkt)
 {
     if (pkt->type==PTYPE_DATA){
-        if (pkt->tr==0){return pkt->crc2;}
+        if (pkt->tr==0){
+            return pkt->crc2;
+        }
     }
 	return 0;
 }
@@ -253,7 +254,9 @@ const char* pkt_get_payload(const pkt_t* pkt)
 {
     if (pkt->type==PTYPE_DATA){
 		if (pkt->tr==0){
-			if(pkt->length>0){return pkt->payload;}
+			if(pkt->length>0){
+                return pkt->payload;
+            }
 		}
 	}
     return NULL;
