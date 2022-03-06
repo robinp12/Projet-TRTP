@@ -1,12 +1,12 @@
 # My Wonderful LINFO1341 Project
 
-The very first thing you might want to do in this folder is the following command:
-```bash
-git init
-```
 
-This will initialize your Git repository.
-You should also put it in a **private** repository (GitHub, GitLab, Bitbucket,... it is up to you but it **has to** stay private).
+Pour lancer le receiver :
+```bash ./receiver ::1 2000 ```
+
+Pour lancer le sender :
+```bash ./sender -f README.md ::1 2000 ```
+
 
 The Makefile contains all the required targets, but you might want to extend their behavior.
 
