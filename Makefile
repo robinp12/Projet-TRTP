@@ -7,7 +7,7 @@ CFLAGS += -c -std=gnu99 -Wall -Werror -Wextra -O2
 CFLAGS += -D_COLOR
 
 # You may want to add something here
-LDFLAGS +=
+LDFLAGS += -lz
 
 # Adapt these as you want to fit with your project
 SENDER_SOURCES = $(wildcard src/sender.c src/log.c)

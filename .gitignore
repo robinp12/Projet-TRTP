@@ -1,2 +1,6 @@
 /src/*.exe
 /src/*.o
+receiver
+sender
+/src/packet_implem
+/.vscode

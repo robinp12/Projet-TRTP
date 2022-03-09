@@ -2,10 +2,10 @@
 
 
 Pour lancer le receiver :
-```bash ./receiver ::1 2000 ```
+``` ./receiver ::1 2000 ```
 
 Pour lancer le sender :
-```bash ./sender -f README.md ::1 2000 ```
+``` ./sender -f README.md ::1 2000 ```
 
 
 The Makefile contains all the required targets, but you might want to extend their behavior.
