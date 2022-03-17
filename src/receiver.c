@@ -17,9 +17,14 @@ int print_usage(char *prog_name)
 
 int main(int argc, char **argv)
 {
-    struct sockaddr_in6 listener_addr;
     int opt;
     int sock = -1;
+    struct sockaddr_in6 listener_addr;
+    socklen_t listener_addrlen = sizeof(listener_addr);
+
+    char *data = malloc(MAX_PAYLOAD_SIZE + 4 * sizeof(uint32_t));
+    if (data == NULL)
+        return 0;
 
     char *stats_filename = NULL;
     char *listen_ip = NULL;
@@ -85,6 +90,16 @@ int main(int argc, char **argv)
         return errno;
     }
 
-    // Now let's code!
+    int loop = 1;
+    while (loop)
+    {
+        if (recvfrom(sock, data, sizeof(data), 0, (struct sockaddr *)&listener_addr, &listener_addrlen) < 0)
+        {
+            printf("ERROR on receiving, error: %s\n", strerror(errno));
+            return errno;
+        }
+    }
+
+    close(sock);
     return EXIT_SUCCESS;
 }

@@ -18,9 +18,11 @@ int print_usage(char *prog_name)
 
 int main(int argc, char **argv)
 {
-    struct sockaddr_in6 receiver_addr;
     int opt;
     int sock = -1;
+    struct sockaddr_in6 receiver_addr;
+
+    FILE *fd;
 
     char *filename = NULL;
     char *stats_filename = NULL;
@@ -89,12 +91,24 @@ int main(int argc, char **argv)
 
     printf("IP : %s \n", receiver_ip);
     printf("Port : %d \n", ntohs(receiver_addr.sin6_port));
-     while (1)
-     {
-         /* code */
-     }
-     
-    
-    // Now let's code!
+
+    fd = fopen(filename, "rb");
+    if (!fd)
+    {
+        printf("Unable to open file, error: %s\n", strerror(errno));
+        return errno;
+    }
+
+    fseek(fd, 0L, SEEK_END);
+    size_t res = ftell(fd);
+
+    int loop = 1;
+    while (loop)
+    {
+        /* code */
+    }
+
+    fclose(fd);
+    close(sock);
     return EXIT_SUCCESS;
 }

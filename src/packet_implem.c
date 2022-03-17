@@ -59,7 +59,6 @@ void pkt_del(pkt_t *pkt)
 
 pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 {
-
     if (!len)
     {
         return E_UNCONSISTENT;
@@ -73,163 +72,125 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
         return E_CRC;
     }
 
-    uint8_t type = ((uint8_t)*data) >> 6;
-    uint32_t crc1;
-    uint32_t crc2;
-    uint32_t timestamp;
-    uint16_t length;
     pkt_status_code error;
-    // uint32_t crc_base = crc32(0L, Z_NULL, 0);
+    uint16_t length;
+    uint8_t type = ((uint8_t)*data) >> 6;
 
-    switch (type)
+    error = pkt_set_type(pkt, type);
+    if (error != PKT_OK)
     {
-    case PTYPE_FEC:
-        pkt_set_type(pkt, PTYPE_FEC);
+        return error;
+    }
 
-        if (pkt_set_tr(pkt, (*data & 0b00100000) >> 7) != PKT_OK)
-        {
-            return E_TR;
-        }
-        if (pkt_set_window(pkt, ((uint8_t)*data) & 0b00011111) != PKT_OK)
-        {
-            return E_WINDOW;
-        }
+    uint8_t tr = (*data & 0b00100000) >> 7;
+    error = pkt_set_tr(pkt, tr);
+    if (error != PKT_OK)
+    {
+        return error;
+    }
 
-        if (pkt_set_seqnum(pkt, data[3]) != PKT_OK)
-        {
-            return E_SEQNUM;
-        }
+    uint8_t window = *data & 0b00011111;
+    error = pkt_set_window(pkt, window);
+    if (error != PKT_OK)
+    {
+        return error;
+    }
 
-        memcpy(&timestamp, data + 4, 4);
-        pkt_set_timestamp(pkt, timestamp);
+    uint64_t offset = 1;
+    if (pkt->type == PTYPE_DATA || pkt->type == PTYPE_FEC)
+    {
 
-        memcpy(&crc1, data + 8, 4);
-        pkt_set_crc1(pkt, ntohl(crc1));
-
-        memcpy(&length, data + 1, 2);
+        memcpy(&length, data + offset, 2);
         length = ntohs(length);
-        pkt_set_length(pkt, length);
 
-        if (len < MAX_PAYLOAD_SIZE + 16)
-        {
-            return E_UNCONSISTENT;
-        }
-        error = pkt_set_payload(pkt, data + 12, MAX_PAYLOAD_SIZE);
+        error = pkt_set_length(pkt, length);
         if (error != PKT_OK)
         {
             return error;
         }
+        offset += 2;
 
-        memcpy(&crc2, data + 12 + MAX_PAYLOAD_SIZE, 4);
-        pkt_set_crc2(pkt, ntohl(crc2));
-
-        break;
-
-    case PTYPE_DATA:
-        pkt_set_type(pkt, PTYPE_DATA);
-
-        if (pkt_set_tr(pkt, (*data & 0b00100000) >> 7) != PKT_OK)
+        if (length + 32 < (int)len)
         {
-            return E_TR;
+            return E_UNCONSISTENT;
         }
-        if (pkt_set_window(pkt, ((uint8_t)*data) & 0b00011111) != PKT_OK)
-        {
-            return E_WINDOW;
-        }
+    }
 
-        if (pkt_set_seqnum(pkt, data[3]) != PKT_OK)
-        {
-            return E_SEQNUM;
-        }
+    uint8_t seqnum = data[offset];
+    offset++;
+    error = pkt_set_seqnum(pkt, seqnum);
+    if (error != PKT_OK)
+    {
+        return error;
+    }
 
-        memcpy(&timestamp, data + 4, 4);
-        pkt_set_timestamp(pkt, timestamp);
+    uint32_t timestamp;
+    memcpy(&timestamp, data + offset, 4);
+    offset += 4;
+    error = pkt_set_timestamp(pkt, timestamp);
+    if (error != PKT_OK)
+    {
+        return error;
+    }
 
-        memcpy(&crc1, data + 8, 4);
-        pkt_set_crc1(pkt, ntohl(crc1));
-
-        memcpy(&length, data + 1, 2);
-        length = ntohs(length);
-
-        if (pkt->tr == 0)
-        {
-            if (len < (size_t)length + 16)
-            {
-                return E_UNCONSISTENT;
-            }
-            error = pkt_set_payload(pkt, data + 12, length);
-            if (error != PKT_OK)
-            {
-                return error;
-            }
-
-            memcpy(&crc2, data + 12 + length, 4);
-            pkt_set_crc2(pkt, ntohl(crc2));
-        }
-        break;
-
-    case PTYPE_ACK:
-        pkt_set_type(pkt, PTYPE_ACK);
-        if (pkt_set_tr(pkt, (*data & 0b00100000) >> 7) != PKT_OK)
-        {
-            return E_TR;
-        }
-        if (pkt_set_window(pkt, ((uint8_t)*data) & 0b00011111) != PKT_OK)
-        {
-            return E_WINDOW;
-        }
-
-        if (pkt_set_seqnum(pkt, data[1]) != PKT_OK)
-        {
-            return E_SEQNUM;
-        }
-        memcpy(&timestamp, data + 2, 4);
-        pkt_set_timestamp(pkt, timestamp);
-
-        memcpy(&crc1, data + 6, 4);
-        pkt_set_crc1(pkt, ntohl(crc1));
-
-        break;
-
-    case PTYPE_NACK:
-        pkt_set_type(pkt, PTYPE_NACK);
-        if (pkt_set_tr(pkt, (*data & 0b00100000) >> 7) != PKT_OK)
-        {
-            return E_TR;
-        }
-        if (pkt_set_window(pkt, ((uint8_t)*data) & 0b00011111) != PKT_OK)
-        {
-            return E_WINDOW;
-        }
-
-        if (pkt_set_seqnum(pkt, data[1]) != PKT_OK)
-        {
-            return E_SEQNUM;
-        }
-        memcpy(&timestamp, data + 2, 4);
-        pkt_set_timestamp(pkt, timestamp);
-
-        memcpy(&crc1, data + 6, 4);
-        pkt_set_crc1(pkt, ntohl(crc1));
-
-        break;
-
-    default:
-        return E_TYPE;
-        break;
+    uint32_t crc1;
+    memcpy(&crc1, data + offset, 4);
+    offset += 4;
+    crc1 = ntohl(crc1);
+    error = pkt_set_crc1(pkt, crc1);
+    if (error != PKT_OK)
+    {
+        return error;
     }
 
     char *header = (char *)malloc(sizeof(char) * predict_header_length(pkt));
     memcpy(header, data, predict_header_length(pkt));
     *header = *header & 0b1101111; // TR mis a 0
     uint32_t crc1_new = crc32(0L, (const unsigned char *)header, predict_header_length(pkt));
-    if (crc1_new != crc1)
+    // if (crc1_new != crc1){
+    //     pkt_set_crc1(pkt, crc1_new);
+    //     free(header);
+    //     return E_CRC;
+    // }
+    pkt_set_crc1(pkt, crc1_new);
+    free(header);
+
+    if (pkt->type == PTYPE_ACK || pkt->type == PTYPE_NACK)
     {
-        return E_CRC; // E_CRC;
+        return PKT_OK;
     }
+
+    if (MAX_PAYLOAD_SIZE + 32 < len)
+    {
+        return E_UNCONSISTENT;
+    }
+
+    error = pkt_set_payload(pkt, data + offset, length);
+    if (error != PKT_OK)
+    {
+        return error;
+    }
+    if (pkt->type == PTYPE_FEC)
+    {
+        offset += MAX_PAYLOAD_SIZE;
+    }
+    else
+    {
+        offset += length;
+    }
+
+    uint32_t crc2;
+    memcpy(&crc2, data + offset, 4);
+    crc2 = ntohl(crc2);
+    error = pkt_set_crc2(pkt, crc2);
+    if (error != PKT_OK)
+    {
+        return error;
+    }
+
     if (pkt->type == PTYPE_FEC && crc32(0L, (const unsigned char *)pkt->payload, MAX_PAYLOAD_SIZE) != crc2)
     {
-        return E_CRC;
+        return PKT_OK; // E_CRC;
     }
     else if (pkt->type == PTYPE_DATA && pkt->tr == 0 && crc32(0L, (const unsigned char *)pkt->payload, pkt->length) != crc2)
     {
@@ -255,80 +216,69 @@ pkt_status_code pkt_encode(const pkt_t *pkt, char *buf, size_t *len)
         return E_NOMEM;
     }
 
-    // uint32_t crc_base = crc32(0L, Z_NULL, 0);
-
     *buf = pkt_get_type(pkt) << 6;
     *buf += pkt_get_window(pkt);
-
-    uint16_t length;
+    *len = 1;
 
     if (pkt->type == PTYPE_DATA)
     {
+        uint16_t length = htons(pkt->length);
+        memcpy(buf + (*len), &length, 2);
+        *len += 2;
+    }
+    if (pkt->type == PTYPE_FEC)
+    {
+        uint16_t length = htons(MAX_PAYLOAD_SIZE);
+        memcpy(buf + (*len), &length, 2);
+        *len += 2;
+    }
 
-        length = htons(pkt_get_length(pkt));
-        memcpy(buf + 1, &length, 2);
+    uint8_t seqnum = pkt->seqnum;
+    memcpy(buf + (*len), &seqnum, 1);
+    *len += 1;
 
-        buf[3] = pkt_get_seqnum(pkt);
+    uint32_t timestamp = pkt->timestamp;
+    memcpy(buf + (*len), &timestamp, 4);
+    *len += 4;
 
-        uint32_t timestamp = pkt_get_timestamp(pkt);
-        memcpy(buf + 4, &timestamp, 4);
+    *buf = *buf & 0b11011111;
+    uint32_t crc1 = crc32(0L, (const unsigned char *)buf, 8);
+    // pkt_set_crc1(pkt, crc1);
+    crc1 = htonl(crc1);
+    memcpy(buf + (*len), &crc1, 4);
+    *len += 4;
+    *buf += pkt_get_tr(pkt) << 5;
 
-        uint32_t crc1 = htonl(crc32(0L, (const unsigned char *)buf, 8));
-        memcpy(buf + 8, &crc1, 4);
+    if (pkt->type == PTYPE_ACK || pkt->type == PTYPE_NACK)
+    {
+        return PKT_OK;
+    }
 
-        *buf += pkt_get_tr(pkt) << 5; // tr après avoir calculé crc1
+    if (pkt->type == PTYPE_DATA && pkt->tr == 0)
+    {
+        memcpy(buf + (*len), pkt_get_payload(pkt), pkt->length);
 
-        if (pkt->tr == 0)
-        {
-            const char *payload = pkt_get_payload(pkt);
-            memcpy(buf + 12, payload, ntohs(length));
-
-            uint32_t crc2 = htonl(crc32(0L, (const unsigned char *)buf + 12, ntohs(length)));
-            memcpy(buf + 12 + ntohs(length), &crc2, 4);
-        }
-
-        *len = 16 + ntohs(length);
+        uint32_t crc2 = crc32(0L, (const unsigned char *)buf + (*len), pkt->length);
+        // pkt_set_crc2(pkt, crc2);
+        crc2 = htonl(crc2);
+        *len += pkt->length;
+        memcpy(buf + (*len), &crc2, 4);
+        *len += 4;
+        return PKT_OK;
     }
     else if (pkt->type == PTYPE_FEC)
     {
+        memcpy(buf + (*len), pkt_get_payload(pkt), MAX_PAYLOAD_SIZE);
 
-        length = htons(pkt_get_length(pkt));
-        memcpy(buf + 1, &length, 2);
-        *len = 16 + MAX_PAYLOAD_SIZE;
+        uint32_t crc2 = crc32(0L, (const unsigned char *)buf + (*len), MAX_PAYLOAD_SIZE);
+        // pkt_set_crc2(pkt, crc2);
+        crc2 = htonl(crc2);
+        *len += MAX_PAYLOAD_SIZE;
 
-        buf[3] = pkt_get_seqnum(pkt);
-
-        uint32_t timestamp = pkt_get_timestamp(pkt);
-        memcpy(buf + 4, &timestamp, 4);
-
-        uint32_t crc1 = htonl(crc32(0L, (const unsigned char *)buf, 8));
-        memcpy(buf + 8, &crc1, 4);
-
-        *buf += pkt_get_tr(pkt) << 5; // tr après avoir calculé crc1
-
-        const char *payload = pkt_get_payload(pkt);
-        memcpy(buf + 12, payload, MAX_PAYLOAD_SIZE);
-
-        uint32_t crc2 = htonl(crc32(0L, (const unsigned char *)buf + 12, MAX_PAYLOAD_SIZE));
-        memcpy(buf + 12 + MAX_PAYLOAD_SIZE, &crc2, 4);
-
-        *len = 16 + MAX_PAYLOAD_SIZE;
+        memcpy(buf + (*len), &crc2, 4);
+        *len += 4;
+        return PKT_OK;
     }
-    else
-    {
-        buf[1] = pkt_get_seqnum(pkt);
-
-        uint32_t timestamp = pkt_get_timestamp(pkt);
-        memcpy(buf + 2, &timestamp, 4);
-
-        uint32_t crc1 = htonl(crc32(0L, (const unsigned char *)buf, 6));
-        memcpy(buf + 8, &crc1, 4);
-
-        *buf += pkt_get_tr(pkt) << 5; // tr après avoir calculé crc1
-
-        *len = 10;
-    }
-
     return PKT_OK;
 }
 
@@ -354,11 +304,7 @@ uint8_t pkt_get_seqnum(const pkt_t *pkt)
 
 uint16_t pkt_get_length(const pkt_t *pkt)
 {
-    if (pkt->type == PTYPE_DATA)
-    {
-        return pkt->length;
-    }
-    return 0;
+    return pkt->length;
 }
 
 uint32_t pkt_get_timestamp(const pkt_t *pkt)
@@ -463,7 +409,7 @@ pkt_status_code pkt_set_crc2(pkt_t *pkt, const uint32_t crc2)
 
 pkt_status_code pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t length)
 {
-    if (pkt_set_length(pkt, length) != PKT_OK)
+    if (pkt->type == PTYPE_DATA && pkt_set_length(pkt, length) != PKT_OK)
     {
         return E_LENGTH;
     }
@@ -471,12 +417,24 @@ pkt_status_code pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t len
     {
         free(pkt->payload);
     }
-    pkt->payload = (char *)malloc(length);
-    if (pkt->payload == NULL)
+    if (pkt->type == PTYPE_DATA)
     {
-        return E_NOMEM;
+        pkt->payload = (char *)malloc(length);
+        if (pkt->payload == NULL)
+        {
+            return E_NOMEM;
+        }
+        memcpy(pkt->payload, data, length);
     }
-    memcpy(pkt->payload, data, length);
+    if (pkt->type == PTYPE_FEC)
+    {
+        pkt->payload = (char *)malloc(MAX_PAYLOAD_SIZE);
+        if (pkt->payload == NULL)
+        {
+            return E_NOMEM;
+        }
+        memcpy(pkt->payload, data, MAX_PAYLOAD_SIZE);
+    }
     return PKT_OK;
 }
 
