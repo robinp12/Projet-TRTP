@@ -5,6 +5,8 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "log.h"
 #include "packet_interface.h"
@@ -21,10 +23,6 @@ int main(int argc, char **argv)
     int sock = -1;
     struct sockaddr_in6 listener_addr;
     socklen_t listener_addrlen = sizeof(listener_addr);
-
-    char *data = malloc(MAX_PAYLOAD_SIZE + 4 * sizeof(uint32_t));
-    if (data == NULL)
-        return 0;
 
     char *stats_filename = NULL;
     char *listen_ip = NULL;
@@ -77,29 +75,37 @@ int main(int argc, char **argv)
         return errno;
     }
 
-    /* Espace memoire IPV6 */
+    /* IPV6 */
     memset(&listener_addr, 0, sizeof(listener_addr));
     listener_addr.sin6_family = AF_INET6;
     listener_addr.sin6_port = htons(listen_port);
-    memcpy(&listener_addr.sin6_addr, &in6addr_any, sizeof(in6addr_any));
+    listener_addr.sin6_addr = in6addr_any;
 
-    // Connexion au socket
+    /* Connect to socket */
     if (bind(sock, (struct sockaddr *)&listener_addr, sizeof(listener_addr)) < 0)
     {
         printf("ERROR during connection, error: %s\n", strerror(errno));
         return errno;
     }
 
-    int loop = 1;
-    while (loop)
+    char *data = malloc(MAX_PAYLOAD_SIZE + 8 + 2 * sizeof(uint32_t));
+    if (data == NULL)
+        return 0;
+
+    /* Receive data from socket */
+    ssize_t recv = recvfrom(sock, data, MAX_PAYLOAD_SIZE + 8 + 2 * sizeof(uint32_t), 0, (struct sockaddr *)&listener_addr, &listener_addrlen);
+    if (recv < 0)
     {
-        if (recvfrom(sock, data, sizeof(data), 0, (struct sockaddr *)&listener_addr, &listener_addrlen) < 0)
-        {
-            printf("ERROR on receiving, error: %s\n", strerror(errno));
-            return errno;
-        }
+        printf("ERROR on receiving, error: %s\n", strerror(errno));
+        free(data);
+        return errno;
     }
 
+    pkt_t *pkt = pkt_new();
+    pkt_status_code state = pkt_decode(data, recv, pkt);
+    printf("state : %d\n", state);
+
+    free(data);
     close(sock);
     return EXIT_SUCCESS;
 }

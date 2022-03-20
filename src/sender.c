@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/socket.h>
 
 #include "log.h"
 #include "packet_interface.h"
@@ -98,14 +99,13 @@ int main(int argc, char **argv)
         printf("Unable to open file, error: %s\n", strerror(errno));
         return errno;
     }
-
     fseek(fd, 0L, SEEK_END);
-    size_t res = ftell(fd);
-
-    int loop = 1;
-    while (loop)
+    ftell(fd);
+    ssize_t s = sendto(sock, fd, sizeof(fd), 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr));
+    if (s < 0)
     {
-        /* code */
+        printf("Unable to open file, error: %s\n", strerror(errno));
+        return errno;
     }
 
     fclose(fd);
