@@ -10,6 +10,10 @@
 
 #include "log.h"
 #include "packet_interface.h"
+#include "read-write/create_socket.h"
+#include "read-write/wait_for_client.h"
+#include "read-write/real_address.h"
+#include "read-write/read_write_loop.h"
 
 int print_usage(char *prog_name)
 {
@@ -67,45 +71,30 @@ int main(int argc, char **argv)
     DEBUG("You can only see me if %s", "you built me using `make debug`");
     ERROR("This is not an error, %s", "now let's code!");
 
-    /* Socket */
-    sock = socket(AF_INET6, SOCK_DGRAM, 0);
+    const char *err = real_address(listen_ip, &listener_addr);
+    if (err)
+    {
+        printf("Could not resolve hostname %s : %s\n", listen_ip, err);
+        return EXIT_FAILURE;
+    }
+
+    sock = create_socket(&listener_addr, listen_port, NULL, -1);
+
+    if (sock > 0 && wait_for_client(sock) < 0)
+    {
+        printf("Could not connect the socket after the first message \n");
+        close(sock);
+        return EXIT_FAILURE;
+    }
+
     if (sock < 0)
     {
-        printf("Could not create the IPv6 SOCK_DGRAM socket, error: %s\n", strerror(errno));
-        return errno;
+        printf("Failed to create de socket! : %s \n", strerror(errno));
+        return EXIT_FAILURE;
     }
 
-    /* IPV6 */
-    memset(&listener_addr, 0, sizeof(listener_addr));
-    listener_addr.sin6_family = AF_INET6;
-    listener_addr.sin6_port = htons(listen_port);
-    listener_addr.sin6_addr = in6addr_any;
+    read_write_loop(sock);
 
-    /* Connect to socket */
-    if (bind(sock, (struct sockaddr *)&listener_addr, sizeof(listener_addr)) < 0)
-    {
-        printf("ERROR during connection, error: %s\n", strerror(errno));
-        return errno;
-    }
-
-    char *data = malloc(MAX_PAYLOAD_SIZE + 8 + 2 * sizeof(uint32_t));
-    if (data == NULL)
-        return 0;
-
-    /* Receive data from socket */
-    ssize_t recv = recvfrom(sock, data, MAX_PAYLOAD_SIZE + 8 + 2 * sizeof(uint32_t), 0, (struct sockaddr *)&listener_addr, &listener_addrlen);
-    if (recv < 0)
-    {
-        printf("ERROR on receiving, error: %s\n", strerror(errno));
-        free(data);
-        return errno;
-    }
-
-    pkt_t *pkt = pkt_new();
-    pkt_status_code state = pkt_decode(data, recv, pkt);
-    printf("state : %d\n", state);
-
-    free(data);
     close(sock);
     return EXIT_SUCCESS;
 }

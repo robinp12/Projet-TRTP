@@ -8,6 +8,13 @@ Pour lancer le sender :
 ``` ./sender -f README.md ::1 2000 ```
 
 
+### Notes
+Compile sender :
+``` gcc sender.c read-write/*.c packet_implem.c -o sender -lz ```
+
+Compile receiver :
+``` gcc receiver.c read-write/*.c packet_implem.c -o receiver -lz ```
+
 The Makefile contains all the required targets, but you might want to extend their behavior.
 
 Very basic skelettons of receiver and sender source files are present, have a look to understand how you can enable logging or not.
