@@ -21,6 +21,21 @@ int print_usage(char *prog_name)
     return EXIT_FAILURE;
 }
 
+pkt_status_code format_pkt(char *pkt_format, uint8_t *seqnum, uint32_t *time, ptypes_t type)
+{
+    pkt_t *pkt = pkt_new();
+    pkt_status_code code;
+    size_t len;
+
+    code = pkt_set_type(pkt, type);
+    code = pkt_set_tr(pkt, 0);
+    code = pkt_set_window(pkt, 1);
+    code = pkt_set_length(pkt, 0);
+    code = pkt_set_seqnum(pkt, *seqnum);
+    code = pkt_set_timestamp(pkt, *time);
+    code = pkt_set_timestamp(pkt, *time);
+}
+
 int main(int argc, char **argv)
 {
     int opt;
@@ -93,7 +108,22 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    read_write_loop(sock);
+    char buffer[1024];
+    ssize_t receiv = recv(sock, buffer, 1024, MSG_PEEK);
+    pkt_t *pkt = pkt_new();
+    pkt_status_code code = pkt_decode(buffer, receiv, pkt);
+    if (code == PKT_OK)
+    {
+        printf("PKT OK");
+    }
+    else
+    {
+        printf("code error : %d\n", code);
+    }
+
+    if (pkt_get_tr(pkt) == 1)
+    {
+    }
 
     close(sock);
     return EXIT_SUCCESS;

@@ -10,6 +10,10 @@
 
 #include "log.h"
 #include "packet_interface.h"
+#include "read-write/create_socket.h"
+#include "read-write/wait_for_client.h"
+#include "read-write/real_address.h"
+#include "read-write/read_write_loop.h"
 
 int print_usage(char *prog_name)
 {
@@ -76,19 +80,19 @@ int main(int argc, char **argv)
     DEBUG("You can only see me if %s", "you built me using `make debug`");
     ERROR("This is not an error, %s", "now let's code!");
 
-    /* Socket */
-    sock = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (sock < 0)
+    const char *err = real_address(receiver_ip, &receiver_addr);
+    if (err)
     {
-        printf("Could not create the IPv6 SOCK_DGRAM socket, error: %s\n", strerror(errno));
-        return errno;
+        printf("Could not resolve hostname %s : %s\n", receiver_ip, err);
+        return EXIT_FAILURE;
     }
 
-    /* Espace memoire IPV6 */
-    memset(&receiver_addr, 0, sizeof(receiver_addr));
-    receiver_addr.sin6_family = AF_INET6;
-    receiver_addr.sin6_port = htons(receiver_port);
-    inet_pton(AF_INET6, receiver_ip, &receiver_addr.sin6_addr.s6_addr);
+    sock = create_socket(NULL, -1, &receiver_addr, receiver_port);
+    if (sock < 0)
+    {
+        printf("Failed to create de socket! : %s \n", strerror(errno));
+        return EXIT_FAILURE;
+    }
 
     printf("IP : %s \n", receiver_ip);
     printf("Port : %d \n", ntohs(receiver_addr.sin6_port));
@@ -99,8 +103,10 @@ int main(int argc, char **argv)
         printf("Unable to open file, error: %s\n", strerror(errno));
         return errno;
     }
+
     fseek(fd, 0L, SEEK_END);
     ftell(fd);
+
     ssize_t s = sendto(sock, fd, sizeof(fd), 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr));
     if (s < 0)
     {
