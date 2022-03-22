@@ -7,9 +7,17 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 #include "log.h"
 #include "packet_interface.h"
+#include "read-write/read_write_sender.h"
+#include "read-write/real_address.h"
+#include "read-write/create_socket.h"
+#include "read-write/wait_for_client.h"
 
 int print_usage(char *prog_name)
 {
@@ -23,7 +31,8 @@ int main(int argc, char **argv)
     int sock = -1;
     struct sockaddr_in6 receiver_addr;
 
-    FILE *fd;
+    int fd;
+    int sfd;
 
     char *filename = NULL;
     char *stats_filename = NULL;
@@ -76,39 +85,51 @@ int main(int argc, char **argv)
     DEBUG("You can only see me if %s", "you built me using `make debug`");
     ERROR("This is not an error, %s", "now let's code!");
 
+
+    /* From ingnious "Envoyer et recevoir des données" */
+
     /* Socket */
     sock = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sock < 0)
     {
-        printf("Could not create the IPv6 SOCK_DGRAM socket, error: %s\n", strerror(errno));
+        ERROR("Could not create the IPv6 SOCK_DGRAM socket, error: %s\n", strerror(errno));
         return errno;
     }
 
-    /* Espace memoire IPV6 */
-    memset(&receiver_addr, 0, sizeof(receiver_addr));
-    receiver_addr.sin6_family = AF_INET6;
-    receiver_addr.sin6_port = htons(receiver_port);
-    inet_pton(AF_INET6, receiver_ip, &receiver_addr.sin6_addr.s6_addr);
+    /* Resolve the hostname */
+	const char *err = real_address(receiver_ip, &receiver_addr);
+	if (err) {
+		ERROR("Could not resolve hostname %s: %s\n", receiver_ip, err);
+		return EXIT_FAILURE;
+	}
 
-    printf("IP : %s \n", receiver_ip);
-    printf("Port : %d \n", ntohs(receiver_addr.sin6_port));
+	/* Get a socket */
+    sfd = create_socket(&receiver_addr, receiver_port, NULL, -1); /* Bound */
+    DEBUG("Waiting for client");
+    if (sfd > 0 && wait_for_client(sfd) < 0) {  /* Connected */
+        ERROR("Could not connect the socket after the first message.\n");
+        close(sfd);
+        return EXIT_FAILURE;
+    }
+    DEBUG("Socket connected");
+	
+	if (sfd < 0) {
+		ERROR(stderr, "Failed to create the socket : %s", strerror(errno));
+		return EXIT_FAILURE;
+	}
 
-    fd = fopen(filename, "rb");
+    fd = open(filename, O_RDONLY);
     if (!fd)
     {
-        printf("Unable to open file, error: %s\n", strerror(errno));
-        return errno;
-    }
-    fseek(fd, 0L, SEEK_END);
-    ftell(fd);
-    ssize_t s = sendto(sock, fd, sizeof(fd), 0, (struct sockaddr *)&receiver_addr, sizeof(receiver_addr));
-    if (s < 0)
-    {
-        printf("Unable to open file, error: %s\n", strerror(errno));
+        ERROR("Unable to open file, error: %s", strerror(errno));
         return errno;
     }
 
-    fclose(fd);
-    close(sock);
+	/* Process I/O */
+	read_write_sender(sfd, fd);
+
+    close(fd);
+	close(sfd);
+
     return EXIT_SUCCESS;
 }
