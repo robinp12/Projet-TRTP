@@ -118,8 +118,5 @@ int main(int argc, char **argv)
 
 	close(sfd);
 
-    read_write_receiver(sfd,0);
-    
-    close(sfd);
     return EXIT_SUCCESS;
 }

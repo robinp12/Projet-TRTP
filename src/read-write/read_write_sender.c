@@ -4,6 +4,8 @@
 #include <sys/time.h>
 #include <string.h>
 #include <errno.h>
+#include <poll.h>
+#include <sys/socket.h>
 
 #include "read_write_sender.h"
 #include "../packet_interface.h"
@@ -35,9 +37,10 @@ int fill_window(const int fd, const int sfd, window_pkt_t* window, int no_pkt)
     size_t bytes_read;
     struct timeval timestamp;
     int n_filled = 0;
-    for (int i = 0; i < window->windowsize && last_packet == 0; i++)
+    for (int i = 0; (i < window->windowsize) && (last_packet == 0); i++)
     {
-        if (window->pkt_array[i] != NULL){
+       
+        if (window->pkt_array[i] == NULL){
             bytes_read = pread(fd, copybuf, MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE*no_pkt);
             if (bytes_read != MAX_PAYLOAD_SIZE){
                 last_packet = 1;
@@ -56,6 +59,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t* window, int no_pkt)
             bytes_read = PKT_MAX_LEN;
             pkt_encode(pkt, copybuf, &bytes_read);
             
+            DEBUG("Sending packet %d", no_pkt);
             if (write(sfd, copybuf, bytes_read) == -1){
                 ERROR("Failed to send packet : %s", strerror(errno));
                 return -1;
@@ -103,6 +107,7 @@ void ack_window(window_pkt_t* window, int ack)
     {
         if (pkt_get_seqnum(window->pkt_array[i]) < ack){
             pkt_del(window->pkt_array[i]);
+            window->pkt_array[i] = NULL;
             window->seqnummin = ack - 1;
         }
     }
@@ -120,68 +125,53 @@ void resent_nack(const int sfd, window_pkt_t* window, int nack){
 
 void read_write_sender(const int sfd, const int fd)
 {
-    fd_set fdset;    // file descriptor set
     
     copybuf = malloc(PKT_MAX_LEN);
     int retval;
 
-    int sfdmax;
-    if (sfd > fd){
-        sfdmax = sfd + 1;
-    } else {
-        sfdmax = fd + 1;
-    }
 
     window_pkt_t* window = malloc(sizeof(window_pkt_t));
-    window->windowsize = 1;
+    window->windowsize = 3;
     window->pkt_array = malloc(sizeof(pkt_t*)*32);
+    
+    
 
-    while (!last_packet)
-    {
-        FD_ZERO(&fdset);               // reset
-        FD_SET(sfd, &fdset);           // add sfd to the set
-        FD_SET(fd, &fdset);            // add file input to the set
-        ssize_t bytes_read;
+    struct pollfd *fds = malloc(sizeof(*fds));
+    int ndfs = 1;
+    
+    memset(fds, 0, sizeof(struct pollfd));
 
 
-        if (select(sfdmax, &fdset, NULL, NULL, 0) == -1){
+    int condition = 1;
+    fds[0].fd = sfd;
+    fds[0].events = POLLOUT;
+
+    while(condition){
+        
+        retval = poll(fds, ndfs, -1);
+        if(retval < 0){
+            ERROR("error poll");
             return;
-        } else if (FD_ISSET(fd, &fdset)) { // send packets
-
-
-            retval = fill_window(fd, sfd, window, no_pkt);
-            if (retval == -1){
-                ERROR("Error in fill window : %s", strerror(errno));
-                return;
+        }
+        if(fds[0].revents & POLLOUT){
+            ssize_t bytes_read = read(fd, copybuf, MAX_PAYLOAD_SIZE);
+            if (bytes_read == 0){
+                DEBUG("End of file");
+                condition = 0;
+                continue;
             }
-            DEBUG("Window fill returned : %d", retval);
 
-            retval = resent_pkt(sfd, window);
-            if (retval == -1){
-                ERROR("Error in resent_pkt : %s", strerror(errno));
-                return;
-            }
-            DEBUG("Resent pkt returned : %d", retval);
-            
-        } else if (FD_ISSET(sfd, &fdset)) { // receive packets
-
-            DEBUG("Read incoming pkt");
-            bytes_read = read(sfd, copybuf, PKT_MAX_LEN);
             pkt_t* pkt = pkt_new();
-            pkt_decode(copybuf, bytes_read, pkt);
+            pkt_set_type(pkt, PTYPE_DATA);
+            pkt_set_payload(pkt, copybuf, bytes_read);
 
-            if (pkt_get_type(pkt) == PTYPE_ACK){
-                ack_window(window, pkt_get_seqnum(pkt));
-            }
+            size_t bytes_encoded;
+            pkt_encode(pkt, copybuf, &bytes_encoded);
+            write(sfd, copybuf, bytes_encoded);
 
-            if (pkt_get_type(pkt) == PTYPE_NACK){
-                resent_nack(sfd, window, pkt_get_seqnum(pkt));
-            }
-            window->windowsize = pkt_get_window(pkt);
-            pkt_del(pkt);
-        } 
+        }
     }
-
+    DEBUG("Frees");
     free(copybuf);
     free(window->pkt_array);
     free(window);

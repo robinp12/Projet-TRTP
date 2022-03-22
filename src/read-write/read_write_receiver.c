@@ -16,35 +16,48 @@ int read_write_receiver(const int sfd, const int fd)
 {
     char* buffpacket = malloc(sizeof(PKT_MAX_LEN));
     char *buffer = malloc(MAX_PAYLOAD_SIZE + 16);
-    pkt_t *pkt = pkt_new();
+    DEBUG("Dump fd : %d", fd);
 
     int rc = 1;
     struct pollfd *fds = malloc(sizeof(*fds));
     int ndfs = 1;
     
 
-    memset(fds, 0, sizeof(fds));
+    memset(fds, 0, sizeof(struct pollfd));
 
     int condition = 1;
+    fds[0].fd = sfd;
+    fds[0].events = POLLIN;
+
     while(condition){
-        fds[0].fd = sfd;
-        fds[0].events = POLLIN;
+        
         int rep = poll(fds, ndfs, -1);
         if(rep < 0){
             printf("error poll");
             return EXIT_FAILURE;
         }
         if(fds[0].revents & POLLIN){
-            rc = recv(sfd, buffer, MAX_PAYLOAD_SIZE, 0);
-            if(rc < 0){
-                printf("error recv");
-                return EXIT_FAILURE;
+            
+            DEBUG("Read");
+            rc = read(sfd, buffer, PKT_MAX_LEN);
+            pkt_t* pkt = pkt_new();
+            pkt_decode(buffer, rc, pkt);
+            const char* payload = pkt_get_payload(pkt);
+            ASSERT(payload != NULL);
+            
+            printf("%s", payload);
+            pkt_del(pkt);
+            
+            if (pkt_get_length(pkt) != MAX_PAYLOAD_SIZE){
+                DEBUG("End of file");
+                condition = 0;
             }
         }
-        printf("buffer : %s \n",buffer);
-        condition = 0;
+        
     }
     
+    DEBUG("Frees")
     free(buffer);
     free(buffpacket);
+    return 0;
 }

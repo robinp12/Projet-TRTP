@@ -124,7 +124,6 @@ int main(int argc, char **argv)
         ERROR("Unable to open file, error: %s", strerror(errno));
         return errno;
     }
-    char* buffer = malloc(sizeof(char)*MAX_PAYLOAD_SIZE);
 
 	/* Process I/O */
 	read_write_sender(sfd, fd);
