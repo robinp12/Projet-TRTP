@@ -1,5 +1,5 @@
 # You can use clang if you prefer
-CC = gcc-11
+CC = gcc#-11
 
 # Feel free to add other C flags
 CFLAGS += -c -std=gnu99 -Wall -Werror -Wextra -O2
@@ -35,6 +35,7 @@ $(RECEIVER): $(RECEIVER_OBJECTS)
 clean:
 	rm -f $(SENDER_OBJECTS) $(RECEIVER_OBJECTS)
 
+
 mrproper:
 	rm -f $(SENDER) $(RECEIVER)
 
@@ -47,7 +48,7 @@ debug: CFLAGS += -D_DEBUG
 debug: clean all
 
 # Place the zip in the parent repository of the project
-ZIP_NAME="../projet1_nom1_nom2.zip"
+ZIP_NAME="../projet1_Hardy_Paquet.zip"
 
 # A zip target, to help you have a proper zip file. You probably need to adapt this code.
 zip:
