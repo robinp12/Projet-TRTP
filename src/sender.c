@@ -14,10 +14,10 @@
 
 #include "log.h"
 #include "packet_interface.h"
+#include "read-write/read_write_sender.h"
+#include "read-write/real_address.h"
 #include "read-write/create_socket.h"
 #include "read-write/wait_for_client.h"
-#include "read-write/real_address.h"
-#include "read-write/read_write_sender.h"
 
 int print_usage(char *prog_name)
 {
@@ -124,6 +124,7 @@ int main(int argc, char **argv)
         ERROR("Unable to open file, error: %s", strerror(errno));
         return errno;
     }
+    char* buffer = malloc(sizeof(char)*MAX_PAYLOAD_SIZE);
 
 	/* Process I/O */
 	read_write_sender(sfd, fd);
