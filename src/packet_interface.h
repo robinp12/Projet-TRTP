@@ -18,7 +18,8 @@
 #define PKT_CRC1LEN member_size(pkt_t, crc1)
 #define PKT_FOOTERLEN (sizeof(pkt_t) - offsetof(pkt_t, crc2))
 #define PKT_MIN_LEN PKT_MIN_HEADERLEN
-#define PKT_MAX_LEN (PKT_MAX_HEADERLEN + MAX_PAYLOAD_SIZE + PKT_FOOTERLEN)
+//#define PKT_MAX_LEN (PKT_MAX_HEADERLEN + MAX_PAYLOAD_SIZE + PKT_FOOTERLEN)
+#define PKT_MAX_LEN 528
 #define PKT_TR_BIT_OFFSET 2
 
 #define PKT_TIMESTAMP 0xdeadbeef

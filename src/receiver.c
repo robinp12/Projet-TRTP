@@ -95,6 +95,7 @@ int main(int argc, char **argv)
     }
 
     read_write_receiver(sock,0);
+    
     close(sock);
     return EXIT_SUCCESS;
 }
