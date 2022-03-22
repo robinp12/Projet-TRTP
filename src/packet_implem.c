@@ -73,7 +73,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     }
 
     pkt_status_code error;
-    uint16_t length;
+    uint16_t length = 0;
     uint8_t type = ((uint8_t)*data) >> 6;
 
     error = pkt_set_type(pkt, type);
