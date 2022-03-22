@@ -114,7 +114,7 @@ int main(int argc, char **argv)
     DEBUG("Socket connected");
 	
 	if (sfd < 0) {
-		ERROR(stderr, "Failed to create the socket : %s", strerror(errno));
+		ERROR("Failed to create the socket : %s", strerror(errno));
 		return EXIT_FAILURE;
 	}
 

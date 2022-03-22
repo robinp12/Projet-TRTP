@@ -2,8 +2,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <string.h>
+#include <errno.h>
 
-#include "read_write_loop.h"
+#include "read_write_sender.h"
 #include "../packet_interface.h"
 #include "../log.h"
 
@@ -25,7 +27,6 @@ typedef struct window_pkt {
     pkt_t** pkt_array;
 } window_pkt_t;
 
-
 /*
 * Fill the window with packet and sent them
 */
@@ -33,6 +34,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t* window, int no_pkt)
 {
     size_t bytes_read;
     struct timeval timestamp;
+    int n_filled = 0;
     for (int i = 0; i < window->windowsize && last_packet == 0; i++)
     {
         if (window->pkt_array[i] != NULL){
@@ -55,15 +57,16 @@ int fill_window(const int fd, const int sfd, window_pkt_t* window, int no_pkt)
             pkt_encode(pkt, copybuf, &bytes_read);
             
             if (write(sfd, copybuf, bytes_read) == -1){
-                ERROR("Failed to send packet \n");
+                ERROR("Failed to send packet : %s", strerror(errno));
                 return -1;
             }
             no_pkt = no_pkt + 1;
+            n_filled++;
         }
         window->seqnummax = no_pkt % 256;
         window->no_pktmax = no_pkt;
     }
-    return 0;
+    return n_filled;
 }
 
 /*
@@ -71,6 +74,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t* window, int no_pkt)
 */
 int resent_pkt(const int sfd, window_pkt_t* window)
 {
+    int nbr_resent = 0;
     struct timeval timeout;
     size_t bytes_copied;
     for (int i = 0; i < window->windowsize; i++)
@@ -83,6 +87,7 @@ int resent_pkt(const int sfd, window_pkt_t* window)
             if (write(sfd, copybuf, bytes_copied) == -1){
                 return -1;
             }
+            nbr_resent++;
         }
     }
     return 0;
@@ -118,6 +123,7 @@ void read_write_sender(const int sfd, const int fd)
     fd_set fdset;    // file descriptor set
     
     copybuf = malloc(PKT_MAX_LEN);
+    int retval;
 
     int sfdmax;
     if (sfd > fd){
@@ -142,15 +148,24 @@ void read_write_sender(const int sfd, const int fd)
             return;
         } else if (FD_ISSET(fd, &fdset)) { // send packets
 
-            if (fill_window(fd, sfd, window, no_pkt) == -1){
+
+            retval = fill_window(fd, sfd, window, no_pkt);
+            if (retval == -1){
+                ERROR("Error in fill window : %s", strerror(errno));
                 return;
             }
-            if (resent_pkt(sfd, window) == -1){
+            DEBUG("Window fill returned : %d", retval);
+
+            retval = resent_pkt(sfd, window);
+            if (retval == -1){
+                ERROR("Error in resent_pkt : %s", strerror(errno));
                 return;
             }
+            DEBUG("Resent pkt returned : %d", retval);
             
         } else if (FD_ISSET(sfd, &fdset)) { // receive packets
 
+            DEBUG("Read incoming pkt");
             bytes_read = read(sfd, copybuf, PKT_MAX_LEN);
             pkt_t* pkt = pkt_new();
             pkt_decode(copybuf, bytes_read, pkt);
@@ -162,6 +177,8 @@ void read_write_sender(const int sfd, const int fd)
             if (pkt_get_type(pkt) == PTYPE_NACK){
                 resent_nack(sfd, window, pkt_get_seqnum(pkt));
             }
+            window->windowsize = pkt_get_window(pkt);
+            pkt_del(pkt);
         } 
     }
 

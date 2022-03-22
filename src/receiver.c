@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <errno.h>
 
 #include "log.h"
 #include "packet_interface.h"
@@ -137,6 +138,7 @@ int main(int argc, char **argv)
     pkt_t* first_packet = pkt_new();
     pkt_set_type(first_packet, PTYPE_ACK);
     pkt_set_seqnum(first_packet, 0);
+    pkt_set_window(first_packet, 10);
     size_t len = PKT_MAX_LEN;
 
     pkt_encode(first_packet, buff, &len);
