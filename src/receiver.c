@@ -9,31 +9,15 @@
 #include <netinet/in.h>
 
 #include "log.h"
-#include "packet_interface.h"
 #include "read-write/create_socket.h"
 #include "read-write/wait_for_client.h"
 #include "read-write/real_address.h"
-#include "read-write/read_write_loop.h"
+#include "read-write/read_write_receiver.h"
 
 int print_usage(char *prog_name)
 {
     ERROR("Usage:\n\t%s [-s stats_filename] listen_ip listen_port", prog_name);
     return EXIT_FAILURE;
-}
-
-pkt_status_code format_pkt(char *pkt_format, uint8_t *seqnum, uint32_t *time, ptypes_t type)
-{
-    pkt_t *pkt = pkt_new();
-    pkt_status_code code;
-    size_t len;
-
-    code = pkt_set_type(pkt, type);
-    code = pkt_set_tr(pkt, 0);
-    code = pkt_set_window(pkt, 1);
-    code = pkt_set_length(pkt, 0);
-    code = pkt_set_seqnum(pkt, *seqnum);
-    code = pkt_set_timestamp(pkt, *time);
-    code = pkt_set_timestamp(pkt, *time);
 }
 
 int main(int argc, char **argv)
@@ -42,6 +26,8 @@ int main(int argc, char **argv)
     int sock = -1;
     struct sockaddr_in6 listener_addr;
     socklen_t listener_addrlen = sizeof(listener_addr);
+
+    FILE *fd;
 
     char *stats_filename = NULL;
     char *listen_ip = NULL;
@@ -108,23 +94,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    char buffer[1024];
-    ssize_t receiv = recv(sock, buffer, 1024, MSG_PEEK);
-    pkt_t *pkt = pkt_new();
-    pkt_status_code code = pkt_decode(buffer, receiv, pkt);
-    if (code == PKT_OK)
-    {
-        printf("PKT OK");
-    }
-    else
-    {
-        printf("code error : %d\n", code);
-    }
-
-    if (pkt_get_tr(pkt) == 1)
-    {
-    }
-
+    read_write_receiver(sock,0);
     close(sock);
     return EXIT_SUCCESS;
 }
