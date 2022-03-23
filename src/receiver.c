@@ -112,7 +112,7 @@ int main(int argc, char **argv)
     DEBUG("First packet sent");
 
 	/* Process I/O */
-	read_write_receiver(sfd, STDOUT_FILENO);
+	read_write_receiver(sfd);
 
     free(buff);
 

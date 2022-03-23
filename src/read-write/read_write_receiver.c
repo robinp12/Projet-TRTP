@@ -12,7 +12,7 @@
 
 char* window;
 
-int read_write_receiver(const int sfd, const int fd)
+int read_write_receiver(const int sfd)
 {
     char* buffpacket = malloc(sizeof(PKT_MAX_LEN));
     char *buffer = malloc(MAX_PAYLOAD_SIZE + 16);

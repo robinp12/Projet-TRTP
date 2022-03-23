@@ -143,7 +143,11 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
         return error;
     }
 
-    char *header = (char *)malloc(sizeof(char) * predict_header_length(pkt));
+    size_t header_len = predict_header_length(pkt);
+    if (header_len > PKT_MAX_HEADERLEN){
+        return E_UNCONSISTENT;
+    }
+    char *header = (char *) malloc(header_len);
     memcpy(header, data, predict_header_length(pkt));
     *header = *header & 0b1101111; // TR mis a 0
     uint32_t crc1_new = crc32(0L, (const unsigned char *)header, predict_header_length(pkt));
