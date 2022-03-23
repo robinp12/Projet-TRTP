@@ -6,6 +6,9 @@
 #include <string.h>
 #include <zlib.h>
 
+#include "log.h"
+
+
 /* Your code will be inserted here */
 
 struct __attribute__((__packed__)) pkt
@@ -214,15 +217,17 @@ pkt_status_code pkt_encode(const pkt_t *pkt, char *buf, size_t *len)
     {
         size += MAX_PAYLOAD_SIZE + 4;
     }
+
     size += 4; // pour le crc1
     if (size > *len)
     {
         return E_NOMEM;
     }
-
+    
     *buf = pkt_get_type(pkt) << 6;
     *buf += pkt_get_window(pkt);
     *len = 1;
+
 
     if (pkt->type == PTYPE_DATA)
     {

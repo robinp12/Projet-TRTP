@@ -143,21 +143,22 @@ void read_write_sender(const int sfd, const int fd)
 
 
     int condition = 1;
+    int eof_reached = 0;
     fds[0].fd = sfd;
-    fds[0].events = POLLOUT;
+    fds[0].events = POLLOUT | POLLIN;
 
-    while(condition){
+    while(!eof_reached || condition){
         
         retval = poll(fds, ndfs, -1);
         if(retval < 0){
             ERROR("error poll");
             return;
         }
-        if(fds[0].revents & POLLOUT){
+        if(fds[0].revents & POLLOUT && !eof_reached){
             ssize_t bytes_read = read(fd, copybuf, MAX_PAYLOAD_SIZE);
             if (bytes_read == 0){
                 DEBUG("End of file");
-                condition = 0;
+                eof_reached = 1;
                 continue;
             }
 
@@ -167,8 +168,16 @@ void read_write_sender(const int sfd, const int fd)
 
             size_t bytes_encoded;
             pkt_encode(pkt, copybuf, &bytes_encoded);
+            DEBUG("Send packet");
             write(sfd, copybuf, bytes_encoded);
 
+        } else if (fds[0].revents & POLLIN && condition){
+            pkt_t* pkt = pkt_new();
+            ssize_t bytes_read = read(sfd, copybuf, PKT_MAX_LEN);
+            pkt_decode(copybuf, bytes_read, pkt);
+            DEBUG("Decode ack : %d", pkt_get_seqnum(pkt));
+            pkt_del(pkt);
+            condition = 0;
         }
     }
     DEBUG("Frees");
