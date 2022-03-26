@@ -14,10 +14,10 @@
 #define TIMEOUT 2000000
 
 int windowsize = 1;
-uint8_t last_packet = 0;
 off_t offset = 0;
 int no_pkt = 0;
 char* copybuf;
+int eof_reached;
 
 typedef struct window_pkt {
     int seqnummax;
@@ -37,13 +37,14 @@ int fill_window(const int fd, const int sfd, window_pkt_t* window, int no_pkt)
     size_t bytes_read;
     struct timeval timestamp;
     int n_filled = 0;
-    for (int i = 0; (i < window->windowsize) && (last_packet == 0); i++)
+    for (int i = 0; (i < window->windowsize) && (eof_reached == 0); i++)
     {
        
         if (window->pkt_array[i] == NULL){
             bytes_read = pread(fd, copybuf, MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE*no_pkt);
             if (bytes_read != MAX_PAYLOAD_SIZE){
-                last_packet = 1;
+                DEBUG("EOF");
+                eof_reached = 1;
             }
 
             pkt_t* pkt = pkt_new();
@@ -64,7 +65,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t* window, int no_pkt)
                 ERROR("Failed to send packet : %s", strerror(errno));
                 return -1;
             }
-            no_pkt = no_pkt + 1;
+            no_pkt++;
             n_filled++;
         }
         window->seqnummax = no_pkt % 256;
@@ -105,6 +106,7 @@ void ack_window(window_pkt_t* window, int ack)
 {
     for (int i = 0; i < window->windowsize; i++)
     {
+        DEBUG("Seqnum : %d for ack : %d", pkt_get_seqnum(window->pkt_array[i]), ack);
         if (pkt_get_seqnum(window->pkt_array[i]) < ack){
             pkt_del(window->pkt_array[i]);
             window->pkt_array[i] = NULL;
@@ -143,7 +145,7 @@ void read_write_sender(const int sfd, const int fd)
 
 
     int condition = 1;
-    int eof_reached = 0;
+    eof_reached = 0;
     fds[0].fd = sfd;
     fds[0].events = POLLOUT | POLLIN;
 
@@ -154,28 +156,38 @@ void read_write_sender(const int sfd, const int fd)
             ERROR("error poll");
             return;
         }
-        if(fds[0].revents & POLLOUT && !eof_reached){
-            ssize_t bytes_read = read(fd, copybuf, MAX_PAYLOAD_SIZE);
-            if (bytes_read == 0){
-                DEBUG("End of file");
-                eof_reached = 1;
-                continue;
-            }
+        if((fds[0].revents & POLLOUT) && !eof_reached){
+            // ssize_t bytes_read = read(fd, copybuf, MAX_PAYLOAD_SIZE);
+            // if (bytes_read == 0){
+            //     DEBUG("End of file");
+            //     eof_reached = 1;
+            //     continue;
+            // }
 
-            pkt_t* pkt = pkt_new();
-            pkt_set_type(pkt, PTYPE_DATA);
-            pkt_set_payload(pkt, copybuf, bytes_read);
+            // pkt_t* pkt = pkt_new();
+            // pkt_set_type(pkt, PTYPE_DATA);
+            // pkt_set_payload(pkt, copybuf, bytes_read);
 
-            size_t bytes_encoded;
-            pkt_encode(pkt, copybuf, &bytes_encoded);
-            DEBUG("Send packet");
-            write(sfd, copybuf, bytes_encoded);
+            // size_t bytes_encoded;
+            // pkt_encode(pkt, copybuf, &bytes_encoded);
+            // DEBUG("Send packet");
+            // write(sfd, copybuf, bytes_encoded);
+            fill_window(fd, sfd, window, no_pkt);
 
-        } else if (fds[0].revents & POLLIN && condition){
+            resent_pkt(sfd, window);
+
+        } else if ((fds[0].revents & POLLIN) && condition){
             pkt_t* pkt = pkt_new();
             ssize_t bytes_read = read(sfd, copybuf, PKT_MAX_LEN);
             pkt_decode(copybuf, bytes_read, pkt);
-            DEBUG("Decode ack : %d", pkt_get_seqnum(pkt));
+
+            if (pkt_get_type(pkt) == PTYPE_NACK){
+                DEBUG("Nack");
+                resent_nack(sfd, window, pkt_get_seqnum(pkt));
+            } else if (pkt_get_type(pkt) == PTYPE_ACK){
+                DEBUG("Ack");
+                ack_window(window, pkt_get_seqnum(pkt));
+            }
             pkt_del(pkt);
             condition = 0;
         }
