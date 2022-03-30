@@ -11,9 +11,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-
 #include "log.h"
-#include "packet_interface.h"
+#include "packet_implem.h"
 #include "read-write/read_write_sender.h"
 #include "read-write/real_address.h"
 #include "read-write/create_socket.h"
@@ -85,38 +84,32 @@ int main(int argc, char **argv)
     DEBUG("You can only see me if %s", "you built me using `make debug`");
     ERROR("This is not an error, %s", "now let's code!");
 
-
     /* From ingnious "Envoyer et recevoir des données" */
 
-    /* Socket */
-    sock = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (sock < 0)
+    /* Resolve the hostname */
+    const char *err = real_address(receiver_ip, &receiver_addr);
+    if (err)
     {
-        ERROR("Could not create the IPv6 SOCK_DGRAM socket, error: %s\n", strerror(errno));
-        return errno;
+        ERROR("Could not resolve hostname %s: %s\n", receiver_ip, err);
+        return EXIT_FAILURE;
     }
 
-    /* Resolve the hostname */
-	const char *err = real_address(receiver_ip, &receiver_addr);
-	if (err) {
-		ERROR("Could not resolve hostname %s: %s\n", receiver_ip, err);
-		return EXIT_FAILURE;
-	}
-
-	/* Get a socket */
-    sfd = create_socket(&receiver_addr, receiver_port, NULL, -1); /* Bound */
+    /* Get a socket */
+    sfd = create_socket(NULL, -1, &receiver_addr, receiver_port); /* Bound */
     DEBUG("Waiting for client");
-    if (sfd > 0 && wait_for_client(sfd) < 0) {  /* Connected */
+    if (sfd > 0 && wait_for_client(sfd) < 0)
+    { /* Connected */
         ERROR("Could not connect the socket after the first message.\n");
         close(sfd);
         return EXIT_FAILURE;
     }
     DEBUG("Socket connected");
-	
-	if (sfd < 0) {
-		ERROR("Failed to create the socket : %s", strerror(errno));
-		return EXIT_FAILURE;
-	}
+
+    if (sfd < 0)
+    {
+        ERROR("Failed to create the socket : %s", strerror(errno));
+        return EXIT_FAILURE;
+    }
 
     fd = open(filename, O_RDONLY);
     if (!fd)

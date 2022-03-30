@@ -10,7 +10,7 @@
 #include <errno.h>
 
 #include "log.h"
-#include "packet_interface.h"
+#include "packet_implem.h"
 #include "read-write/create_socket.h"
 #include "read-write/real_address.h"
 #include "read-write/wait_for_client.h"
@@ -27,9 +27,9 @@ int main(int argc, char **argv)
     int opt;
     // int sock = -1;
     struct sockaddr_in6 listener_addr;
-    //socklen_t listener_addrlen = sizeof(listener_addr);
+    // socklen_t listener_addrlen = sizeof(listener_addr);
 
-    //FILE *fd;
+    // FILE *fd;
 
     char *stats_filename = NULL;
     char *listen_ip = NULL;
@@ -74,24 +74,25 @@ int main(int argc, char **argv)
     DEBUG("You can only see me if %s", "you built me using `make debug`");
     ERROR("This is not an error, %s", "now let's code!");
 
-
     /* Resolve the hostname */
     DEBUG("Resolve hostname");
-	
-	const char *err = real_address(listen_ip, &listener_addr);
-	if (err) {
-		fprintf(stderr, "Could not resolve hostname %s: %s\n", listen_ip, err);
-		return EXIT_FAILURE;
-	}
-	/* Get a socket */
+
+    const char *err = real_address(listen_ip, &listener_addr);
+    if (err)
+    {
+        fprintf(stderr, "Could not resolve hostname %s: %s\n", listen_ip, err);
+        return EXIT_FAILURE;
+    }
+    /* Get a socket */
     DEBUG("Get socket");
-	int sfd;
-	sfd = create_socket(NULL, -1, &listener_addr, listen_port); /* Connected */
-	
-	if (sfd < 0) {
-		fprintf(stderr, "Failed to create the socket!: %s\n", strerror(errno));
-		return EXIT_FAILURE;
-	}
+    int sfd;
+    sfd = create_socket(&listener_addr, listen_port, NULL, -1); /* Connected */
+
+    if (sfd < 0)
+    {
+        fprintf(stderr, "Failed to create the socket!: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
 
     char* buff = malloc(sizeof(char)*PKT_MAX_LEN);
 
@@ -104,7 +105,8 @@ int main(int argc, char **argv)
     size_t len = PKT_MAX_LEN;
 
     pkt_encode(first_packet, buff, &len);
-    if (write(sfd, buff, len) == -1){
+    if (write(sfd, buff, len) == -1)
+    {
         ERROR("Failed to sent first packet : %s", strerror(errno));
         return EXIT_FAILURE;
     }
