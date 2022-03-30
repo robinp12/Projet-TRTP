@@ -76,6 +76,10 @@ int main(int argc, char **argv)
 
     /* Resolve the hostname */
     DEBUG("Resolve hostname");
+    char str[INET6_ADDRSTRLEN];
+    inet_pton(AF_INET6, listen_ip, &(listener_addr.sin6_addr));
+    inet_ntop(AF_INET6, &(listener_addr.sin6_addr), str, INET6_ADDRSTRLEN);
+    printf("IPV6 : %s\n", str);
 
     const char *err = real_address(listen_ip, &listener_addr);
     if (err)
@@ -87,18 +91,24 @@ int main(int argc, char **argv)
     DEBUG("Get socket");
     int sfd;
     sfd = create_socket(&listener_addr, listen_port, NULL, -1); /* Connected */
-
+    DEBUG("Waiting for client");
+    if (sfd > 0 && wait_for_client(sfd) < 0)
+    { /* Connected */
+        ERROR("Could not connect the socket after the first message.\n");
+        close(sfd);
+        return EXIT_FAILURE;
+    }
+    DEBUG("Socket connected");
     if (sfd < 0)
     {
         fprintf(stderr, "Failed to create the socket!: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
-    char* buff = malloc(sizeof(char)*PKT_MAX_LEN);
-
+    char *buff = malloc(sizeof(char) * PKT_MAX_LEN);
 
     DEBUG("Create first packet to initiate connexion");
-    pkt_t* first_packet = pkt_new();
+    pkt_t *first_packet = pkt_new();
     pkt_set_type(first_packet, PTYPE_ACK);
     pkt_set_seqnum(first_packet, 0);
     pkt_set_window(first_packet, 10);
@@ -113,12 +123,12 @@ int main(int argc, char **argv)
     pkt_del(first_packet);
     DEBUG("First packet sent");
 
-	/* Process I/O */
-	read_write_receiver(sfd);
+    /* Process I/O */
+    read_write_receiver(sfd);
 
     free(buff);
 
-	close(sfd);
+    close(sfd);
 
     return EXIT_SUCCESS;
 }

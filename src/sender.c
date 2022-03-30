@@ -27,7 +27,6 @@ int print_usage(char *prog_name)
 int main(int argc, char **argv)
 {
     int opt;
-    int sock = -1;
     struct sockaddr_in6 receiver_addr;
 
     int fd;
@@ -86,6 +85,10 @@ int main(int argc, char **argv)
 
     /* From ingnious "Envoyer et recevoir des données" */
 
+    char str[INET6_ADDRSTRLEN];
+    inet_pton(AF_INET6, receiver_ip, &(receiver_addr.sin6_addr));
+    inet_ntop(AF_INET6, &(receiver_addr.sin6_addr), str, INET6_ADDRSTRLEN);
+    printf("IPV6 : %s\n", str);
     /* Resolve the hostname */
     const char *err = real_address(receiver_ip, &receiver_addr);
     if (err)
@@ -96,15 +99,6 @@ int main(int argc, char **argv)
 
     /* Get a socket */
     sfd = create_socket(NULL, -1, &receiver_addr, receiver_port); /* Bound */
-    DEBUG("Waiting for client");
-    if (sfd > 0 && wait_for_client(sfd) < 0)
-    { /* Connected */
-        ERROR("Could not connect the socket after the first message.\n");
-        close(sfd);
-        return EXIT_FAILURE;
-    }
-    DEBUG("Socket connected");
-
     if (sfd < 0)
     {
         ERROR("Failed to create the socket : %s", strerror(errno));
@@ -118,11 +112,11 @@ int main(int argc, char **argv)
         return errno;
     }
 
-	/* Process I/O */
-	read_write_sender(sfd, fd);
+    /* Process I/O */
+    read_write_sender(sfd, fd);
 
     close(fd);
-	close(sfd);
+    close(sfd);
 
     return EXIT_SUCCESS;
 }

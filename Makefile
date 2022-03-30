@@ -1,5 +1,5 @@
 # You can use clang if you prefer
-CC = gcc-11
+CC = gcc
 
 # Feel free to add other C flags
 CFLAGS += -c -std=gnu99 -Wall -Werror -Wextra -O2

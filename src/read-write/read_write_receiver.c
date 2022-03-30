@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 
 #include "read_write_loop.h"
-#include "../packet_interface.h"
+#include "../packet_implem.h"
 #include "../log.h"
 
 char *window;
@@ -15,6 +15,7 @@ char *buffer;
 
 int send_ack(const int sfd, uint8_t seqnum)
 {
+    int error;
     pkt_t *pkt = pkt_new();
     int retval = pkt_set_type(pkt, PTYPE_ACK);
     if (retval != PKT_OK)
@@ -41,7 +42,10 @@ int send_ack(const int sfd, uint8_t seqnum)
 
     DEBUG("Writing %zu bytes on socket", len);
     fflush(stdout);
-    write(sfd, buffer, len);
+    error = write(sfd, buffer, len);
+    if (error == -1){
+        return -1;
+    }
     DEBUG("ack %d sent", seqnum);
     pkt_del(pkt);
     return 0;

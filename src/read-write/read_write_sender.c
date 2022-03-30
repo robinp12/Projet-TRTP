@@ -127,8 +127,12 @@ void ack_window(window_pkt_t *window, int ack)
 void resent_nack(const int sfd, window_pkt_t *window, int nack)
 {
     size_t len;
+    int error;
     pkt_encode(window->pkt_array[nack], copybuf, &len);
-    write(sfd, copybuf, len);
+    error = write(sfd, copybuf, len);
+    if (error == -1){
+        return;
+    }
 }
 
 void read_write_sender(const int sfd, const int fd)
