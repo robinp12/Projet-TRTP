@@ -4,3 +4,4 @@ receiver
 sender
 /src/packet_implem
 /.vscode
+src/linkedList/*.o

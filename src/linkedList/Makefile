@@ -2,33 +2,27 @@
 CC = gcc-11
 
 # Feel free to add other C flags
-CFLAGS += -c -std=gnu99 -Wall -Werror -Wextra -O2 -lz
+CFLAGS += -std=gnu99 -Wall -Werror -Wextra -O2 -lz
 # By default, we colorize the output, but this might be ugly in log files, so feel free to remove the following line.
 CFLAGS += -D_COLOR
 
 # For CUnit (on MacOs)
-CFLAGS += -lcunit -I/usr/local/include -L/usr/local/CUnit/lib -c
-
-# Adapt these as you want to fit with your project
-SOURCES = $(wildcard ../packet_implem.c linkedList.c test_linkedList.c)
-
-OBJECTS = $(SOURCES:.c=.o)
-
-TEST = test
-
-all: $(TEST)
-
-$(TEST): $(OBJECTS)
-	$(CC) $(OBJECTS) -o test $(CFLAGS)
-	./test
+CFLAGS += -I/usr/local/include -L/usr/local/lib -lcunit -g
 
 %.o: %.c
-	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+	$(CC) -c $(CFLAGS) $< -o $@ $(LDFLAGS)
 
-.PHONY: clean 
+test: ../packet_implem.o linkedList.o
+	$(CC) test_linkedList.c -o test $(CFLAGS) ../packet_implem.o linkedList.o
+
+testValgrind:
+	make test
+	valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all ./test
+
+.PHONY: test
 
 clean:
-	rm -f $(OBJECTS)
+	rm -f test ../packet_implem.o linkedList.o test_linkedList.o
 
 
 

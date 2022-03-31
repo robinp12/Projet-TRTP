@@ -20,11 +20,23 @@ linkedList_t* linkedList_create(void)
 */
 int linkedList_del(linkedList_t* linkedList)
 {
+    if (linkedList->size == 0){
+        free(linkedList);
+        return 0;
+    }
+    if (linkedList->size == 1){
+        pkt_del(linkedList->head->pkt);
+        free(linkedList->head);
+        free(linkedList);
+        return 0;
+    }
     node_t* current = linkedList->head;
     while (current->next != NULL)
     {
         pkt_del(current->pkt);
+        node_t* odlNode = current;
         current = current->next;
+        free(odlNode);
     }
     free(linkedList);
     return 0;
@@ -49,6 +61,17 @@ int linkedList_add(linkedList_t* linkedList, node_t* n)
 
 
 /*
+* Add a packet at the end of the linked lsit
+*/
+int linkedList_add_pkt(linkedList_t* linkedList, pkt_t* pkt)
+{
+    node_t* node = malloc(sizeof(node_t));
+    node->pkt = pkt;
+    return linkedList_add(linkedList, node);
+}
+
+
+/*
 * Remove the node at the beginning
 */
 int linkedList_remove(linkedList_t* linkedList)
@@ -58,12 +81,14 @@ int linkedList_remove(linkedList_t* linkedList)
     }
     if (linkedList->size == 1){
         pkt_del(linkedList->head->pkt);
-        linkedList->head = NULL;
-        linkedList->tail = NULL;
+        free(linkedList->head);
         linkedList->size = 0;
+        return 0;
     }
     pkt_del(linkedList->head->pkt);
+    node_t* old = linkedList->head;
     linkedList->head = linkedList->head->next;
     linkedList->size--;
+    free(old);
     return 0;
 }

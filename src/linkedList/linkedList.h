@@ -8,7 +8,7 @@ typedef struct node {
     struct node* next;
 } node_t;
 
-typedef struct linked_list {
+typedef struct linkedList {
     node_t* head;
     node_t* tail;
     uint8_t size;
@@ -28,6 +28,11 @@ int linkedList_del(linkedList_t* linkedList);
 * Add a node at the end of the linked list
 */
 int linkedList_add(linkedList_t* linkedList, node_t* n);
+
+/*
+* Add a packet at the end of the linked lsit
+*/
+int linkedList_add_pkt(linkedList_t* linkedList, pkt_t* pkt);
 
 
 /*

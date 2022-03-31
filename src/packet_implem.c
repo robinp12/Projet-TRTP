@@ -428,7 +428,10 @@ pkt_status_code pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t len
     }
     if (pkt->type == PTYPE_DATA)
     {
-        pkt->payload = (char *)malloc(length);
+        if (length == 0){
+            return E_LENGTH;
+        }
+        pkt->payload = (char *)malloc(sizeof(char)*length);
         if (pkt->payload == NULL)
         {
             return E_NOMEM;
