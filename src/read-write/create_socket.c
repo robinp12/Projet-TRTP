@@ -1,7 +1,7 @@
 
 
 #include "create_socket.h"
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
 
@@ -17,22 +17,29 @@ int create_socket(struct sockaddr_in6 *source_addr, int src_port, struct sockadd
 {
     int skt = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
     int error;
-    if (skt == -1){
+    if (skt == -1)
+    {
         return -1;
     }
 
-    if (source_addr != NULL && src_port > 0){
+    if (source_addr != NULL && src_port > 0)
+    {
         source_addr->sin6_port = htons(src_port);
-        error = bind(skt, (const struct sockaddr*) source_addr, sizeof(struct sockaddr_in6));
-        if (error != 0){
+        source_addr->sin6_family = AF_INET6;
+        error = bind(skt, (const struct sockaddr *)source_addr, sizeof(struct sockaddr_in6));
+        if (error != 0)
+        {
             return -1;
         }
     }
 
-    if (dest_addr != NULL && dst_port > 0){
+    if (dest_addr != NULL && dst_port > 0)
+    {
         dest_addr->sin6_port = htons(dst_port);
-        error = connect(skt, (const struct sockaddr*) dest_addr, sizeof(struct sockaddr_in6));
-        if (error != 0){
+        dest_addr->sin6_family = AF_INET6;
+        error = connect(skt, (const struct sockaddr *)dest_addr, sizeof(struct sockaddr_in6));
+        if (error != 0)
+        {
             return -1;
         }
     }

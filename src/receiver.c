@@ -10,7 +10,7 @@
 #include <errno.h>
 
 #include "log.h"
-#include "packet_interface.h"
+#include "packet_implem.h"
 #include "read-write/create_socket.h"
 #include "read-write/real_address.h"
 #include "read-write/wait_for_client.h"
@@ -27,9 +27,9 @@ int main(int argc, char **argv)
     int opt;
     // int sock = -1;
     struct sockaddr_in6 listener_addr;
-    //socklen_t listener_addrlen = sizeof(listener_addr);
+    // socklen_t listener_addrlen = sizeof(listener_addr);
 
-    //FILE *fd;
+    // FILE *fd;
 
     char *stats_filename = NULL;
     char *listen_ip = NULL;
@@ -74,49 +74,61 @@ int main(int argc, char **argv)
     DEBUG("You can only see me if %s", "you built me using `make debug`");
     ERROR("This is not an error, %s", "now let's code!");
 
-
     /* Resolve the hostname */
     DEBUG("Resolve hostname");
-	
-	const char *err = real_address(listen_ip, &listener_addr);
-	if (err) {
-		fprintf(stderr, "Could not resolve hostname %s: %s\n", listen_ip, err);
-		return EXIT_FAILURE;
-	}
-	/* Get a socket */
+    char str[INET6_ADDRSTRLEN];
+    inet_pton(AF_INET6, listen_ip, &(listener_addr.sin6_addr));
+    inet_ntop(AF_INET6, &(listener_addr.sin6_addr), str, INET6_ADDRSTRLEN);
+    printf("IPV6 : %s\n", str);
+
+    const char *err = real_address(listen_ip, &listener_addr);
+    if (err)
+    {
+        fprintf(stderr, "Could not resolve hostname %s: %s\n", listen_ip, err);
+        return EXIT_FAILURE;
+    }
+    /* Get a socket */
     DEBUG("Get socket");
-	int sfd;
-	sfd = create_socket(NULL, -1, &listener_addr, listen_port); /* Connected */
-	
-	if (sfd < 0) {
-		fprintf(stderr, "Failed to create the socket!: %s\n", strerror(errno));
-		return EXIT_FAILURE;
-	}
+    int sfd;
+    sfd = create_socket(&listener_addr, listen_port, NULL, -1); /* Connected */
+    DEBUG("Waiting for client");
+    if (sfd > 0 && wait_for_client(sfd) < 0)
+    { /* Connected */
+        ERROR("Could not connect the socket after the first message.\n");
+        close(sfd);
+        return EXIT_FAILURE;
+    }
+    DEBUG("Socket connected");
+    if (sfd < 0)
+    {
+        fprintf(stderr, "Failed to create the socket!: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
 
-    char* buff = malloc(sizeof(char)*PKT_MAX_LEN);
-
+    char *buff = malloc(sizeof(char) * PKT_MAX_LEN);
 
     DEBUG("Create first packet to initiate connexion");
-    pkt_t* first_packet = pkt_new();
+    pkt_t *first_packet = pkt_new();
     pkt_set_type(first_packet, PTYPE_ACK);
     pkt_set_seqnum(first_packet, 0);
     pkt_set_window(first_packet, 10);
     size_t len = PKT_MAX_LEN;
 
     pkt_encode(first_packet, buff, &len);
-    if (write(sfd, buff, len) == -1){
+    if (write(sfd, buff, len) == -1)
+    {
         ERROR("Failed to sent first packet : %s", strerror(errno));
         return EXIT_FAILURE;
     }
     pkt_del(first_packet);
     DEBUG("First packet sent");
 
-	/* Process I/O */
-	read_write_receiver(sfd);
+    /* Process I/O */
+    read_write_receiver(sfd);
 
     free(buff);
 
-	close(sfd);
+    close(sfd);
 
     return EXIT_SUCCESS;
 }
