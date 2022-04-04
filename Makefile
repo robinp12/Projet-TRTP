@@ -1,8 +1,8 @@
 # You can use clang if you prefer
-CC = gcc
+CC = gcc-11
 
 # Feel free to add other C flags
-CFLAGS += -c -std=gnu99 -Wall -Werror -Wextra -O2
+CFLAGS += -c -std=gnu99 -Wall -Werror -Wextra -O2 
 # By default, we colorize the output, but this might be ugly in log files, so feel free to remove the following line.
 CFLAGS += -D_COLOR
 
@@ -10,8 +10,8 @@ CFLAGS += -D_COLOR
 LDFLAGS += -lz
 
 # Adapt these as you want to fit with your project
-SENDER_SOURCES = $(wildcard src/sender.c src/log.c src/packet_implem.c src/read-write/*.c)
-RECEIVER_SOURCES = $(wildcard src/receiver.c src/log.c src/packet_implem.c src/read-write/*.c)
+SENDER_SOURCES = $(wildcard src/sender.c src/log.c src/packet_implem.c src/read-write/*.c src/linkedList/linkedList.c)
+RECEIVER_SOURCES = $(wildcard src/receiver.c src/log.c src/packet_implem.c src/read-write/*.c src/linkedList/linkedList.c)
 
 SENDER_OBJECTS = $(SENDER_SOURCES:.c=.o)
 RECEIVER_OBJECTS = $(RECEIVER_SOURCES:.c=.o)

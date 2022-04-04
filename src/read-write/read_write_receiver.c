@@ -32,7 +32,6 @@ int send_ack(const int sfd, uint8_t seqnum)
     }
 
     size_t len = PKT_MAX_LEN;
-    DEBUG("Ecoding pkt");
     retval = pkt_encode(pkt, buffer, &len);
     if (retval != PKT_OK)
     {
@@ -40,13 +39,11 @@ int send_ack(const int sfd, uint8_t seqnum)
         return -1;
     }
 
-    DEBUG("Writing %zu bytes on socket", len);
-    fflush(stdout);
+
     error = write(sfd, buffer, len);
     if (error == -1){
         return -1;
     }
-    DEBUG("ack %d sent", seqnum);
     pkt_del(pkt);
     return 0;
 }
@@ -82,10 +79,10 @@ int read_write_receiver(const int sfd)
             rc = read(sfd, buffer, PKT_MAX_LEN);
             pkt_t *pkt = pkt_new();
             pkt_decode(buffer, rc, pkt);
-            // const char* payload = pkt_get_payload(pkt);
-            // ASSERT(payload != NULL);
+            const char* payload = pkt_get_payload(pkt);
+            ASSERT(payload != NULL);
 
-            // printf("%s", payload);
+            printf("%s", payload);
             lastSeqnum = pkt_get_seqnum(pkt);
             pkt_del(pkt);
 
@@ -97,7 +94,9 @@ int read_write_receiver(const int sfd)
         }
         else if (fds[0].revents & POLLOUT)
         {
+            DEBUG("send ack");
             send_ack(sfd, lastSeqnum);
+            DEBUG("Ack send : %d", lastSeqnum);
         }
     }
 

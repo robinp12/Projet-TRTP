@@ -9,8 +9,8 @@ CFLAGS += -D_COLOR
 # For CUnit (on MacOs)
 CFLAGS += -I/usr/local/include -L/usr/local/lib -lcunit -g
 
-%.o: %.c
-	$(CC) -c $(CFLAGS) $< -o $@ $(LDFLAGS)
+%.o: %.c %.h
+	$(CC) -c $(CFLAGS) $< -o $@
 
 test: ../packet_implem.o linkedList.o
 	$(CC) test_linkedList.c -o test $(CFLAGS) ../packet_implem.o linkedList.o

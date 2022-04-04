@@ -1,6 +1,6 @@
 
-#include "test_linkedList.h"
 #include "linkedList.h"
+#include "test_linkedList.h"
 #include "../packet_implem.h"
 
 pkt_t* dummy_pkt(const char* msg)
@@ -62,15 +62,41 @@ void test_multiple_node(void)
     i = 1;
     while (list->size > 0){
         CU_ASSERT_EQUAL(linkedList_remove(list), 0);
-        if (list->size >= 10){
+        if (list->size > 0){
             CU_ASSERT_EQUAL(strcmp(pkt_get_payload(list->head->pkt), msgs[i]), 0);
         }
+
         CU_ASSERT_EQUAL(list->size, 5-i);
         i++;
     }
 
     CU_ASSERT_EQUAL(linkedList_del(list), 0);
     
+}
+
+void test_remove_end(void)
+{
+    linkedList_t* list = linkedList_create();
+
+    const char* msgs[5] = {"Packet 1\0", "Packet 2\0", "Packet 3\0", "Packet 4\0", "Packet 5\0"};
+
+    for (int i = 0; i < 5; i++)
+    {
+        pkt_t* pkt = dummy_pkt(msgs[i]);
+        linkedList_add_pkt(list, pkt);
+    }
+
+
+    int i = 3;
+    while (list->size > 0){
+        CU_ASSERT_EQUAL(linkedList_remove_end(list), 0);
+        if (list->size > 0){
+            CU_ASSERT_EQUAL(strcmp(pkt_get_payload(list->tail->pkt), msgs[i]), 0);
+        }
+        i--;
+    }
+
+    CU_ASSERT_EQUAL(linkedList_del(list), 0);
 }
 
 
@@ -96,7 +122,8 @@ int main()
     }
 
     if (CU_add_test(suite_basic, "One node", test_one_node) == NULL ||
-        CU_add_test(suite_basic, "Multiples nodes", test_multiple_node) == NULL){
+        CU_add_test(suite_basic, "Multiples nodes", test_multiple_node) == NULL ||
+        CU_add_test(suite_basic, "Remove end", test_remove_end) == NULL){
         CU_cleanup_registry();
         return CU_get_error();
     }

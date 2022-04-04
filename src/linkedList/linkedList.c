@@ -61,7 +61,7 @@ int linkedList_add(linkedList_t* linkedList, node_t* n)
 
 
 /*
-* Add a packet at the end of the linked lsit
+* Add a packet at the end of the linked list
 */
 int linkedList_add_pkt(linkedList_t* linkedList, pkt_t* pkt)
 {
@@ -92,3 +92,30 @@ int linkedList_remove(linkedList_t* linkedList)
     free(old);
     return 0;
 }
+
+/*
+* Remove the node at the end
+*/
+int linkedList_remove_end(linkedList_t* linkedList)
+{
+    if (linkedList->size == 0){
+        return -1;
+    }
+    if (linkedList->size == 1){
+        pkt_del(linkedList->head->pkt);
+        free(linkedList->head);
+        linkedList->size = 0;
+        return 0;
+    }
+    node_t* current = linkedList->head;
+    while (current->next != linkedList->tail)
+    {
+        current = current->next;
+    }
+    pkt_del(linkedList->tail->pkt);
+    free(linkedList->tail);
+    linkedList->tail = current;
+    linkedList->size--;
+    return 0;
+}
+

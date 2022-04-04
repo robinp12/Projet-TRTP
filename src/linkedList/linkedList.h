@@ -40,5 +40,10 @@ int linkedList_add_pkt(linkedList_t* linkedList, pkt_t* pkt);
 */
 int linkedList_remove(linkedList_t* linkedList);
 
+/*
+* Remove the node at the end
+*/
+int linkedList_remove_end(linkedList_t* linkedList);
+
 
 #endif
