@@ -15,7 +15,7 @@
 #define TIMEOUT 2000000
 
 char *buffer;
-int eof_reached;
+int eof_reached_receiver;
 uint8_t lastSeqnum = 0;
 
 typedef struct window_pkt
@@ -29,10 +29,11 @@ typedef struct window_pkt
     linkedList_t *linkedList;
 } window_pkt_t;
 
-int send_ack(const int sfd, uint8_t seqnum)
+int send_ack(const int sfd, uint8_t seqnum, window_pkt_t* window)
 {
     pkt_t *pkt = pkt_new();
-    int retval = pkt_set_type(pkt, PTYPE_NACK);
+    int retval = pkt_set_type(pkt, PTYPE_ACK);
+    pkt_set_window(pkt, window->windowsize);
     if (retval != PKT_OK)
     {
         ERROR("Set type failed : %d", retval);
@@ -54,12 +55,12 @@ int send_ack(const int sfd, uint8_t seqnum)
         return -1;
     }
 
-    DEBUG("Sending packet %d", seqnum);
     if (write(sfd, buffer, len) == -1)
     {
         ERROR("Failed to send packet : %s", strerror(errno));
         return -1;
     }
+    DEBUG("Ack send : %d", pkt_get_seqnum(pkt));
     pkt_del(pkt);
     return 0;
 }
@@ -74,7 +75,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
     linkedList_t *list = window->linkedList;
 
-    while ((list->size < window->windowsize) && (eof_reached == 0))
+    while ((list->size < window->windowsize) && (eof_reached_receiver == 0))
     {
         bytes_read = read(sfd, buffer, PKT_MAX_LEN);
 
@@ -91,24 +92,26 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
         window->seqnum = pkt_get_seqnum(pkt);
         lastSeqnum = pkt_get_seqnum(pkt);
 
-        ASSERT(payload != NULL);
 
         // printf("type:%d\n", pkt_get_type(pkt));
-        // printf("seqnum:%d\n", pkt_get_seqnum(pkt));
+        //printf("seqnum:%d\n", pkt_get_seqnum(pkt));
         // printf("window:%d\n", pkt_get_window(pkt));
         // printf("tr:%d\n", pkt_get_tr(pkt));
         // printf("length:%d\n", pkt_get_length(pkt));
         // DEBUG("PAYLOAD CHAR: %s\n", pkt_get_payload(pkt));
+        
 
         linkedList_add_pkt(list, pkt);
 
-        DEBUG("Receiving packet %ld", window->pktnum);
+        DEBUG("Receiving packet %lld", window->pktnum);
+        printf("%s\n", payload);
+
         window->pktnum++;
         n_filled++;
-        if (pkt_get_length(pkt) < 512)
+        if (pkt_get_length(pkt)  == 0)
         {
             DEBUG("End of file");
-            eof_reached = 1;
+            eof_reached_receiver = 1;
         }
     }
 
@@ -137,11 +140,11 @@ void read_write_receiver(const int sfd)
 
     memset(fds, 0, sizeof(struct pollfd));
 
-    eof_reached = 0;
+    eof_reached_receiver = 0;
     fds[0].fd = sfd;
     fds[0].events = POLLIN | POLLOUT;
-    int wait = 0;
-    while (!eof_reached)
+    
+    while (!eof_reached_receiver)
     {
 
         retval = poll(fds, ndfs, -1);
@@ -150,26 +153,35 @@ void read_write_receiver(const int sfd)
             ERROR("error poll");
             return;
         }
-        if ((fds[0].revents & POLLIN) && !eof_reached)
+        if ((fds[0].revents & POLLIN) && !eof_reached_receiver)
         {
             if (window->linkedList->size != window->windowsize)
             {
                 retval = fill_packet_window(sfd, window);
-                if (retval >= 0)
-                {
-                    DEBUG("Fill window : %d", retval);
-                }
             }
-            wait = 0;
-        }
-        else if (fds[0].revents & POLLOUT)
-        {
-            if (!wait)
+
+            // Temporaire : vider la liste sans vérifier si les paquets sont en séquence (pour pouvoir faire avancer le sender, sinon le receiver bloque avec sa fenetre de reception pleine)
+            while (window->linkedList->size >= 1)
             {
-                send_ack(sfd, lastSeqnum);
-                DEBUG("Ack sent : %d", lastSeqnum);
-                wait = 1;
+                linkedList_remove(window->linkedList);
             }
+            
+
+        }
+       
+       
+        retval = poll(fds, ndfs, -1);
+        if (retval < 0)
+        {
+            ERROR("error poll");
+            return;
+        }
+       if (fds[0].revents & POLLOUT)
+        {
+            // Temporaire : pas de gestion de la taille de la fenetre sur base du reseau
+            window->windowsize = 4;
+            retval = send_ack(sfd, (lastSeqnum+1)%255, window);
+            DEBUG("send_ack for %d returned %d", lastSeqnum+1, retval);
         }
     }
 

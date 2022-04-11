@@ -29,6 +29,33 @@ typedef struct window_pkt
     linkedList_t* linkedList;
 } window_pkt_t;
 
+
+/*
+* Send final packet
+*/
+int send_final_pkt(const int sfd, window_pkt_t* window)
+{
+    struct timeval timestamp;
+
+    pkt_t* pkt = pkt_new();
+    pkt_set_type(pkt, PTYPE_DATA);
+    pkt_set_tr(pkt, 0);
+    pkt_set_length(pkt, 0);
+    pkt_set_window(pkt, window->windowsize);
+    gettimeofday(&timestamp, NULL);
+    pkt_set_timestamp(pkt, (uint32_t) timestamp.tv_usec);
+
+    size_t len = PKT_MAX_LEN;
+    if (pkt_encode(pkt, copybuf, &len) != PKT_OK){
+        return -1;
+    }
+    if (write(sfd, copybuf, len) == -1){
+        return -1;
+    }
+    pkt_del(pkt);
+    return 0;
+}
+
 /*
  * Fill the window with packet and sent them
  */
@@ -64,12 +91,12 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
         bytes_read = PKT_MAX_LEN;
         pkt_encode(pkt, copybuf, &bytes_read);
 
-        DEBUG("Sending packet %lld", window->pktnum);
         if (write(sfd, copybuf, bytes_read) == -1)
         {
             ERROR("Failed to send packet : %s", strerror(errno));
             return -1;
         }
+        DEBUG("Sent packet %lld", window->pktnum);
         window->pktnum++;
         n_filled++;
 
@@ -99,10 +126,13 @@ int resent_pkt(const int sfd, window_pkt_t *window)
             pkt_encode(pkt, copybuf, &bytes_copied);
             if (write(sfd, copybuf, bytes_copied) == -1)
             {
+                ERROR("Failed to resent pkt : %s", strerror(errno));
                 return -1;
             }
             nbr_resent++;
         }
+        if (current == window->linkedList->tail)
+            return nbr_resent;
         current = current->next;
     }
     return nbr_resent;
@@ -140,6 +170,13 @@ int ack_window(window_pkt_t *window, int ack)
                 free(old);
             }
             no_acked++;
+            if (list->size == 0){
+                return no_acked;
+            }
+        } else if (list->size > 1 && current != list->tail) {
+            current = current->next;
+        } else {
+            current = NULL;
         }
     }
     return no_acked;
@@ -175,6 +212,36 @@ int resent_nack(const int sfd, window_pkt_t *window, int nack)
     return 0;
 }
 
+
+/*
+* Update the size of the window in the linked list
+* @return : 0 if the size stay the same
+*           1 if the size increase
+*           2 if the size decrease
+            -1 in case of error
+*/
+int update_window(window_pkt_t* window, uint8_t newSize){
+    if (newSize == window->windowsize){
+        return 0;
+    }
+    if (newSize > window->windowsize){
+        window->windowsize = newSize;
+        return 1;
+    }
+
+    linkedList_t* list = window->linkedList;
+    while (list->size > window->windowsize)
+    {
+        if (linkedList_remove_end(list) != 0){
+            ERROR("linkedList_remove_end failed");
+            return -1;
+        }
+    }
+    
+    window->windowsize = newSize;
+    return 2;
+}
+
 void read_write_sender(const int sfd, const int fd)
 {
 
@@ -201,10 +268,8 @@ void read_write_sender(const int sfd, const int fd)
     fds[0].fd = sfd;
     fds[0].events = POLLOUT | POLLIN;
 
-    while (!eof_reached)
+    while (1)
     {
-
-        DEBUG("Waiting poll");
         retval = poll(fds, ndfs, -1);
         if (retval < 0)
         {
@@ -212,47 +277,65 @@ void read_write_sender(const int sfd, const int fd)
             return;
         }
 
-        DEBUG("after poll");
-        if ((fds[0].revents & POLLOUT) && !eof_reached)
+        /* Sending packets */
+        if ((fds[0].revents & POLLOUT))
         {
-            if (window->linkedList->size != window->windowsize){
+            if (!eof_reached && window->linkedList->size != window->windowsize){
                 retval = fill_window(fd, sfd, window);
-                if (retval >= 0){
-                    DEBUG("Fill window : %d", retval);
+                if (retval != 0){
+                    DEBUG("fill_window returned %d", retval);
                 }
             }
 
-            // retval = resent_pkt(sfd, window);
-            // if (retval > 0){
-            //     DEBUG("Resent pkt : %d", retval);
-            // }
+            retval = resent_pkt(sfd, window);
+            if (retval != 0){
+                DEBUG("resent_pkt returned %d", retval);
+            }
+            
         }
-        else if (fds[0].revents & POLLIN)
+
+        retval = poll(fds, ndfs, -1);
+        if (retval < 0)
         {
-            DEBUG("read in");
+            ERROR("error poll");
+            return;
+        }
+        
+        /* Reading incoming packets */
+        if (fds[0].revents & POLLIN)
+        {
+
             ssize_t bytes_read = read(sfd, copybuf, PKT_MAX_LEN);
+  
             pkt_t *pkt = pkt_new();
             pkt_decode(copybuf, bytes_read, pkt);
 
-            window->windowsize = pkt_get_window(pkt);
-
             if (pkt_get_type(pkt) == PTYPE_NACK)
             {
-                DEBUG("Nack");
                 retval = resent_nack(sfd, window, pkt_get_seqnum(pkt));
-                DEBUG("Nack %d", retval);
+                DEBUG("resent_nack for %d returned %d", pkt_get_seqnum(pkt), retval);
             }
             else if (pkt_get_type(pkt) == PTYPE_ACK)
             {
-                DEBUG("Ack");
                 retval = ack_window(window, pkt_get_seqnum(pkt));
-                DEBUG("Ack %d", retval);
+                if (retval != 0)
+                    DEBUG("ack_window returned %d for seqnum %d (list size : %d)", retval, pkt_get_seqnum(pkt), window->linkedList->size);
             }
+            
+            retval = update_window(window, pkt_get_window(pkt));
+            if (retval != 0){
+                DEBUG("update_window returned %d", retval);
+            }
+
             pkt_del(pkt);
         }
+        if (eof_reached && window->linkedList->size == 0){
+            retval = send_final_pkt(sfd, window);
+            DEBUG("Send final pkt : %d", retval);
+            free(copybuf);
+            linkedList_del(window->linkedList);
+            free(window);
+            return;
+        }
     }
-    DEBUG("Frees");
-    free(copybuf);
-    linkedList_del(window->linkedList);
-    free(window);
 }

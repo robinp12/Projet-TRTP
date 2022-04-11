@@ -107,11 +107,11 @@ int main(int argc, char **argv)
 
     char *buff = malloc(sizeof(char) * PKT_MAX_LEN);
 
-    DEBUG("Create first packet to initiate connexion");
+    /*DEBUG("Create first packet to initiate connexion");
     pkt_t *first_packet = pkt_new();
     pkt_set_type(first_packet, PTYPE_ACK);
     pkt_set_seqnum(first_packet, 0);
-    pkt_set_window(first_packet, 10);
+    pkt_set_window(first_packet, 1);
     size_t len = PKT_MAX_LEN;
 
     pkt_encode(first_packet, buff, &len);
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
     pkt_del(first_packet);
-    DEBUG("First packet sent");
+    DEBUG("First packet sent");*/
 
     /* Process I/O */
     read_write_receiver(sfd);
