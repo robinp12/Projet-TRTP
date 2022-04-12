@@ -25,9 +25,7 @@ int print_usage(char *prog_name)
 int main(int argc, char **argv)
 {
     int opt;
-    // int sock = -1;
     struct sockaddr_in6 listener_addr;
-    // socklen_t listener_addrlen = sizeof(listener_addr);
 
     // FILE *fd;
 
@@ -75,11 +73,10 @@ int main(int argc, char **argv)
     ERROR("This is not an error, %s", "now let's code!");
 
     /* Resolve the hostname */
-    DEBUG("Resolve hostname");
     char str[INET6_ADDRSTRLEN];
     inet_pton(AF_INET6, listen_ip, &(listener_addr.sin6_addr));
     inet_ntop(AF_INET6, &(listener_addr.sin6_addr), str, INET6_ADDRSTRLEN);
-    printf("IPV6 : %s\n", str);
+    DEBUG("IPV6 : %s", str);
 
     const char *err = real_address(listen_ip, &listener_addr);
     if (err)
@@ -87,10 +84,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "Could not resolve hostname %s: %s\n", listen_ip, err);
         return EXIT_FAILURE;
     }
+
     /* Get a socket */
-    DEBUG("Get socket");
     int sfd;
     sfd = create_socket(&listener_addr, listen_port, NULL, -1); /* Connected */
+
     DEBUG("Waiting for client");
     if (sfd > 0 && wait_for_client(sfd) < 0)
     { /* Connected */
@@ -98,6 +96,7 @@ int main(int argc, char **argv)
         close(sfd);
         return EXIT_FAILURE;
     }
+
     DEBUG("Socket connected");
     if (sfd < 0)
     {
@@ -124,7 +123,7 @@ int main(int argc, char **argv)
     DEBUG("First packet sent");*/
 
     /* Process I/O */
-    read_write_receiver(sfd);
+    read_write_receiver(sfd, stats_filename);
 
     free(buff);
 

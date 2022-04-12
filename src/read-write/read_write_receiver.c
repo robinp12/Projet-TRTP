@@ -17,6 +17,22 @@
 char *buffer;
 int eof_reached_receiver;
 uint8_t lastSeqnum = 0;
+uint32_t timestamp;
+
+/* Variables de stats */
+int data_sent = 0;
+int data_received = 0;
+int data_truncated_received = 0;
+// int fec_sent = 0;
+// int fec_received = 0;
+int ack_sent = 0;
+int ack_received = 0;
+int nack_sent = 0;
+int nack_received = 0;
+int packet_ignored = 0;
+
+int packet_duplicated = 0;
+int packet_recovered = 0;
 
 typedef struct window_pkt
 {
@@ -29,40 +45,48 @@ typedef struct window_pkt
     linkedList_t *linkedList;
 } window_pkt_t;
 
-int send_ack(const int sfd, uint8_t seqnum, window_pkt_t* window)
+int send_response(const int sfd, int type, uint8_t seqnum, window_pkt_t *window, const uint32_t timestamp)
 {
     pkt_t *pkt = pkt_new();
-    int retval = pkt_set_type(pkt, PTYPE_ACK);
-    pkt_set_window(pkt, window->windowsize);
-    if (retval != PKT_OK)
+    if (pkt_set_type(pkt, type) != PKT_OK)
     {
-        ERROR("Set type failed : %d", retval);
-        return -1;
+        ERROR("Set type failed : %d", pkt_set_type(pkt, type));
+        return EXIT_FAILURE;
     }
 
-    pkt_set_seqnum(pkt, seqnum);
-    if (retval != PKT_OK)
+    if (pkt_set_window(pkt, window->windowsize) != PKT_OK)
     {
-        ERROR("Seqnum failed : %d", retval);
-        return -1;
+        ERROR("Set windows failed : %d", pkt_set_window(pkt, window->windowsize));
+        return EXIT_FAILURE;
+    }
+
+    if (pkt_set_seqnum(pkt, seqnum) != PKT_OK)
+    {
+        ERROR("Seqnum failed : %d", pkt_set_seqnum(pkt, seqnum));
+        return EXIT_FAILURE;
+    }
+
+    if (pkt_set_timestamp(pkt, timestamp) != PKT_OK)
+    {
+        ERROR("Seqnum failed : %d", pkt_set_timestamp(pkt, timestamp));
+        return EXIT_FAILURE;
     }
 
     size_t len = PKT_MAX_LEN;
-    retval = pkt_encode(pkt, buffer, &len);
-    if (retval != PKT_OK)
+    if (pkt_encode(pkt, buffer, &len) != PKT_OK)
     {
-        ERROR("Encode failed : %d", retval);
-        return -1;
+        ERROR("Encode failed : %d", pkt_encode(pkt, buffer, &len));
+        return EXIT_FAILURE;
     }
 
     if (write(sfd, buffer, len) == -1)
     {
         ERROR("Failed to send packet : %s", strerror(errno));
-        return -1;
+        return EXIT_FAILURE;
     }
-    DEBUG("Ack send : %d", pkt_get_seqnum(pkt));
+
     pkt_del(pkt);
-    return 0;
+    return PKT_OK;
 }
 
 /*
@@ -72,61 +96,87 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 {
     size_t bytes_read;
     int n_filled = 0;
+    int retval;
 
     linkedList_t *list = window->linkedList;
 
-    while ((list->size < window->windowsize) && (eof_reached_receiver == 0))
+    while (eof_reached_receiver == 0)
     {
         bytes_read = read(sfd, buffer, PKT_MAX_LEN);
 
         pkt_t *pkt = pkt_new();
-        pkt_status_code status = pkt_decode(buffer, bytes_read, pkt);
-        // printf("status: %d\n",status);
-        if (status != PKT_OK)
+        pkt_decode(buffer, bytes_read, pkt);
+        DEBUG("Receiving packet %ld", window->pktnum);
+
+        if (pkt_get_type(pkt) == PTYPE_DATA)
         {
-            ERROR("error decode");
-            return EXIT_FAILURE;
+            if (pkt_get_tr(pkt) == 1)
+            { /* Paquet tronqué */
+                lastSeqnum = pkt_get_seqnum(pkt) + 1;
+                timestamp = pkt_get_timestamp(pkt);
+
+                retval = send_response(sfd, PTYPE_NACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));
+                if (retval != PKT_OK)
+                {
+                    ERROR("Sending nack failed : %d", retval);
+                    return EXIT_FAILURE;
+                }
+                DEBUG("send_nack : %d", lastSeqnum);
+                nack_sent++;
+                data_truncated_received++;
+            }
+
+            if (pkt_get_tr(pkt) == 0)
+            { /* Paquet non tronqué (OK) */
+                lastSeqnum = pkt_get_seqnum(pkt) + 1;
+                timestamp = pkt_get_timestamp(pkt);
+
+                // Décommenter si on veut envoyer un ack apres chaque paquet recu
+
+                /* retval = send_response(sfd, PTYPE_ACK, (lastSeqnum)%255, window, timestamp);
+                if (retval != PKT_OK)
+                {
+                    ERROR("Sending ack failed : %d", retval);
+                    return EXIT_FAILURE;
+                }
+                DEBUG("send_ack : %d", lastSeqnum); */
+
+                ack_sent++;
+            }
+
+            if (pkt_get_length(pkt) == 0)
+            { /* Reception du dernier paquet */
+                DEBUG("EOF");
+                eof_reached_receiver = 1;
+                return EXIT_SUCCESS;
+            }
+            data_received++;
         }
-        window->windowsize = pkt_get_window(pkt);
-        const char *payload = pkt_get_payload(pkt);
-        window->seqnum = pkt_get_seqnum(pkt);
-        lastSeqnum = pkt_get_seqnum(pkt);
-
-
-        // printf("type:%d\n", pkt_get_type(pkt));
-        //printf("seqnum:%d\n", pkt_get_seqnum(pkt));
-        // printf("window:%d\n", pkt_get_window(pkt));
-        // printf("tr:%d\n", pkt_get_tr(pkt));
-        // printf("length:%d\n", pkt_get_length(pkt));
-        // DEBUG("PAYLOAD CHAR: %s\n", pkt_get_payload(pkt));
-        
+        if (pkt_get_type(pkt) != PTYPE_DATA && pkt_get_tr(pkt) != 0)
+        { /* Paquet ignoré */
+            packet_ignored++;
+            data_truncated_received++;
+        }
 
         linkedList_add_pkt(list, pkt);
 
-        DEBUG("Receiving packet %lld", window->pktnum);
-        printf("%s\n", payload);
-
         window->pktnum++;
         n_filled++;
-        if (pkt_get_length(pkt)  == 0)
-        {
-            DEBUG("End of file");
-            eof_reached_receiver = 1;
-        }
     }
 
     return n_filled;
 }
 
-void read_write_receiver(const int sfd)
+void read_write_receiver(const int sfd, char *stats_filename)
 {
+    int retval;
+
     buffer = (char *)malloc(sizeof(char) * PKT_MAX_LEN);
     if (buffer == NULL)
     {
-        ERROR("Error memory");
+        ERROR("Error memory buffer");
         return;
     }
-    int retval;
 
     window_pkt_t *window = malloc(sizeof(window_pkt_t));
     window->offset = 0;
@@ -143,16 +193,16 @@ void read_write_receiver(const int sfd)
     eof_reached_receiver = 0;
     fds[0].fd = sfd;
     fds[0].events = POLLIN | POLLOUT;
-    
+
     while (!eof_reached_receiver)
     {
-
         retval = poll(fds, ndfs, -1);
         if (retval < 0)
         {
-            ERROR("error poll");
+            ERROR("error POLLIN");
             return;
         }
+
         if ((fds[0].revents & POLLIN) && !eof_reached_receiver)
         {
             if (window->linkedList->size != window->windowsize)
@@ -165,24 +215,40 @@ void read_write_receiver(const int sfd)
             {
                 linkedList_remove(window->linkedList);
             }
-            
-
         }
-       
-       
+
         retval = poll(fds, ndfs, -1);
         if (retval < 0)
         {
-            ERROR("error poll");
+            ERROR("error POLLOUT");
             return;
         }
-       if (fds[0].revents & POLLOUT)
+
+        if (fds[0].revents & POLLOUT)
         {
             // Temporaire : pas de gestion de la taille de la fenetre sur base du reseau
             window->windowsize = 4;
-            retval = send_ack(sfd, (lastSeqnum+1)%255, window);
-            DEBUG("send_ack for %d returned %d", lastSeqnum+1, retval);
+            retval = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, timestamp);
+            DEBUG("send_ack for %d returned %d", lastSeqnum, retval);
         }
+    }
+
+    if (stats_filename != NULL)
+    {
+        FILE *f = fopen(stats_filename, "w");
+        fprintf(f, "data_sent:%d\n", data_sent);
+        fprintf(f, "data_received:%d\n", data_received);
+        fprintf(f, "data_truncated_received:%d\n", data_truncated_received);
+        // fprintf(f, "fec_sent:%d\n", fec_sent);
+        // fprintf(f, "fec_received:%d\n", fec_received);
+        fprintf(f, "ack_sent:%d\n", ack_sent);
+        fprintf(f, "ack_received:%d\n", ack_received);
+        fprintf(f, "nack_sent:%d\n", nack_sent);
+        fprintf(f, "nack_received:%d\n", nack_received);
+        fprintf(f, "packet_ignored:%d\n", packet_ignored);
+        fprintf(f, "packet_duplicated:%d\n", packet_duplicated);
+        fprintf(f, "packet_recovered:%d", packet_recovered);
+        fclose(f);
     }
 
     DEBUG("Frees");
