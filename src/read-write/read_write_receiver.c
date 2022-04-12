@@ -23,8 +23,8 @@ uint32_t timestamp;
 int data_sent = 0;
 int data_received = 0;
 int data_truncated_received = 0;
-// int fec_sent = 0;
-// int fec_received = 0;
+int fec_sent = 0;
+int fec_received = 0;
 int ack_sent = 0;
 int ack_received = 0;
 int nack_sent = 0;
@@ -110,7 +110,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
         if (pkt_get_type(pkt) == PTYPE_DATA)
         {
-            if (pkt_get_length(pkt) <= 512)
+            if (pkt_get_length(pkt) <= MAX_PAYLOAD_SIZE)
             {
                 data_received++;
 
@@ -188,7 +188,7 @@ void read_write_receiver(const int sfd, char *stats_filename)
     window->offset = 0;
     window->pktnum = 0;
     window->seqnum = 0;
-    window->windowsize = 1;
+    window->windowsize = 4;
     window->linkedList = linkedList_create();
 
     struct pollfd *fds = malloc(sizeof(*fds));
@@ -230,8 +230,8 @@ void read_write_receiver(const int sfd, char *stats_filename)
         fprintf(f, "data_sent:%d\n", data_sent);
         fprintf(f, "data_received:%d\n", data_received);
         fprintf(f, "data_truncated_received:%d\n", data_truncated_received);
-        // fprintf(f, "fec_sent:%d\n", fec_sent);
-        // fprintf(f, "fec_received:%d\n", fec_received);
+        fprintf(f, "fec_sent:%d\n", fec_sent);
+        fprintf(f, "fec_received:%d\n", fec_received);
         fprintf(f, "ack_sent:%d\n", ack_sent);
         fprintf(f, "ack_received:%d\n", ack_received);
         fprintf(f, "nack_sent:%d\n", nack_sent);
