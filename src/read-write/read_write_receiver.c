@@ -110,49 +110,55 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
         if (pkt_get_type(pkt) == PTYPE_DATA)
         {
-            if (pkt_get_tr(pkt) == 1)
-            { /* Paquet tronqué */
-                lastSeqnum = pkt_get_seqnum(pkt) + 1;
-                timestamp = pkt_get_timestamp(pkt);
+            if (pkt_get_length(pkt) <= 512)
+            {
+                data_received++;
 
-                retval = send_response(sfd, PTYPE_NACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));
-                if (retval != PKT_OK)
-                {
-                    ERROR("Sending nack failed : %d", retval);
-                    return EXIT_FAILURE;
+                if (pkt_get_tr(pkt) == 1)
+                { /* Paquet tronqué */
+                    lastSeqnum = pkt_get_seqnum(pkt);
+                    timestamp = pkt_get_timestamp(pkt);
+
+                    retval = send_response(sfd, PTYPE_NACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));
+                    if (retval != PKT_OK)
+                    {
+                        ERROR("Sending nack failed : %d", retval);
+                        return EXIT_FAILURE;
+                    }
+                    DEBUG("send_nack : %d", lastSeqnum);
+                    nack_sent++;
+                    data_truncated_received++;
                 }
-                DEBUG("send_nack : %d", lastSeqnum);
-                nack_sent++;
-                data_truncated_received++;
-            }
 
-            if (pkt_get_tr(pkt) == 0)
-            { /* Paquet non tronqué (OK) */
-                lastSeqnum = pkt_get_seqnum(pkt) + 1;
-                timestamp = pkt_get_timestamp(pkt);
+                if (pkt_get_tr(pkt) == 0)
+                { /* Paquet non tronqué (OK) */
+                    lastSeqnum = pkt_get_seqnum(pkt) + 1;
+                    timestamp = pkt_get_timestamp(pkt);
 
-                // Décommenter si on veut envoyer un ack apres chaque paquet recu
+                    retval = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, timestamp);
+                    if (retval != PKT_OK)
+                    {
+                        ERROR("Sending ack failed : %d", retval);
+                        return EXIT_FAILURE;
+                    }
+                    DEBUG("send_ack : %d", lastSeqnum);
 
-                /* retval = send_response(sfd, PTYPE_ACK, (lastSeqnum)%255, window, timestamp);
-                if (retval != PKT_OK)
-                {
-                    ERROR("Sending ack failed : %d", retval);
-                    return EXIT_FAILURE;
+                    ack_sent++;
                 }
-                DEBUG("send_ack : %d", lastSeqnum); */
 
-                ack_sent++;
+                if (pkt_get_length(pkt) == 0)
+                { /* Reception du dernier paquet */
+                    DEBUG("EOF");
+                    eof_reached_receiver = 1;
+                    return EXIT_SUCCESS;
+                }
             }
-
-            if (pkt_get_length(pkt) == 0)
-            { /* Reception du dernier paquet */
-                DEBUG("EOF");
-                eof_reached_receiver = 1;
-                return EXIT_SUCCESS;
+            else
+            {
+                packet_ignored++;
             }
-            data_received++;
         }
-        if (pkt_get_type(pkt) != PTYPE_DATA && pkt_get_tr(pkt) != 0)
+        if ((pkt_get_type(pkt) != PTYPE_DATA && pkt_get_tr(pkt) != 0))
         { /* Paquet ignoré */
             packet_ignored++;
             data_truncated_received++;
@@ -215,21 +221,6 @@ void read_write_receiver(const int sfd, char *stats_filename)
             {
                 linkedList_remove(window->linkedList);
             }
-        }
-
-        retval = poll(fds, ndfs, -1);
-        if (retval < 0)
-        {
-            ERROR("error POLLOUT");
-            return;
-        }
-
-        if (fds[0].revents & POLLOUT)
-        {
-            // Temporaire : pas de gestion de la taille de la fenetre sur base du reseau
-            window->windowsize = 4;
-            retval = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, timestamp);
-            DEBUG("send_ack for %d returned %d", lastSeqnum, retval);
         }
     }
 
