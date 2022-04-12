@@ -110,6 +110,19 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
         if (pkt_get_type(pkt) == PTYPE_DATA)
         {
+            // window->windowsize = pkt_get_window(pkt);
+            window->windowsize = 4; /* Temporaire */
+            printf("linkedlist size : %d\n", window->linkedList->size);
+
+            if (window->linkedList->size <= window->windowsize)
+            {
+                linkedList_add_pkt(list, pkt);
+            }
+            if (window->linkedList->size > window->windowsize)
+            {
+                linkedList_remove(list);
+            }
+
             if (pkt_get_length(pkt) <= MAX_PAYLOAD_SIZE)
             {
                 data_received++;
@@ -164,8 +177,6 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
             data_truncated_received++;
         }
 
-        linkedList_add_pkt(list, pkt);
-
         window->pktnum++;
         n_filled++;
     }
@@ -188,7 +199,7 @@ void read_write_receiver(const int sfd, char *stats_filename)
     window->offset = 0;
     window->pktnum = 0;
     window->seqnum = 0;
-    window->windowsize = 4;
+    window->windowsize = 1;
     window->linkedList = linkedList_create();
 
     struct pollfd *fds = malloc(sizeof(*fds));
@@ -217,10 +228,10 @@ void read_write_receiver(const int sfd, char *stats_filename)
             }
 
             // Temporaire : vider la liste sans vérifier si les paquets sont en séquence (pour pouvoir faire avancer le sender, sinon le receiver bloque avec sa fenetre de reception pleine)
-            while (window->linkedList->size >= 1)
+            /* while (window->linkedList->size >= 1)
             {
                 linkedList_remove(window->linkedList);
-            }
+            } */
         }
     }
 
