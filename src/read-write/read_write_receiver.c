@@ -112,7 +112,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
         {
             // window->windowsize = pkt_get_window(pkt);
             window->windowsize = 4; /* Temporaire */
-            printf("linkedlist size : %d\n", window->linkedList->size);
+            // printf("linkedlist size : %d\n",window->linkedList->size);
 
             if (window->linkedList->size <= window->windowsize)
             {
@@ -147,7 +147,11 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
                 { /* Paquet non tronqué (OK) */
                     lastSeqnum = pkt_get_seqnum(pkt) + 1;
                     timestamp = pkt_get_timestamp(pkt);
-
+                    int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
+                    if (wr == -1)
+                    {
+                        return EXIT_FAILURE;
+                    }
                     retval = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, timestamp);
                     if (retval != PKT_OK)
                     {
@@ -157,13 +161,12 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
                     DEBUG("send_ack : %d", lastSeqnum);
 
                     ack_sent++;
-                }
-
-                if (pkt_get_length(pkt) == 0)
-                { /* Reception du dernier paquet */
-                    DEBUG("EOF");
-                    eof_reached_receiver = 1;
-                    return EXIT_SUCCESS;
+                    if (pkt_get_length(pkt) == 0)
+                    { /* Reception du dernier paquet */
+                        DEBUG("EOF");
+                        eof_reached_receiver = 1;
+                        return EXIT_SUCCESS;
+                    }
                 }
             }
             else
