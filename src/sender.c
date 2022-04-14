@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     }
 
     /* Process I/O */
-    read_write_sender(sfd, fd);
+    read_write_sender(sfd, fd, stats_filename);
 
     close(fd);
     close(sfd);

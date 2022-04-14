@@ -20,7 +20,8 @@ int eof_reached;
 
 typedef struct window_pkt
 {
-    uint8_t seqnum;
+    uint8_t seqnumHead;
+    uint8_t seqnumTail;
     int windowsize;
 
     int offset;
@@ -30,6 +31,20 @@ typedef struct window_pkt
 } window_pkt_t;
 
 
+/* Stats variables */
+static int data_sent = 0;             // number of PTYPE_DATA packet sent
+static int data_received = 0;         // number of valid PTYPE_DATA packets received
+static int data_truncated_received;   // number of valied PTYPE_DATA packets with TR field to 1 received
+static int fec_sent = 0;              // number of PTYPE_FEC packets sent
+static int fec_received = 0;          // number of valid PTYPE_FEC packets received
+static int ack_sent = 0;              // number of PTYPE_ACK packets sent
+static int ack_received = 0;          // number of valid PTYPE_ACK packets received
+static int nack_sent = 0;             // number of PTYPE_NACK packets sent
+static int nack_received = 0;         // number of valid PTYPE_NACK packets received 
+static int packet_ignored = 0;        // number of ignored packets
+static uint32_t min_rtt;              // minimum time (in milliseconds) between the sending of a PTYPE_DATA packet and the receiving of the corresponding PTYPE_ACK packet
+static uint32_t max_rtt;              // maximum time (in milliseconds) between the sending of a PTYPE_DATA packet and the receiving of the corresponding PTYPE_ACK packet
+static int packet_retransmitted = 0;  // number of  PTYPE_DATA packets resent (loss, truncation or corruption)
 /*
 * Send final packet
 */
@@ -52,6 +67,7 @@ int send_final_pkt(const int sfd, window_pkt_t* window)
     if (write(sfd, copybuf, len) == -1){
         return -1;
     }
+    ++data_sent;
     pkt_del(pkt);
     return 0;
 }
@@ -79,7 +95,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
 
         pkt_t *pkt = pkt_new();
         pkt_set_type(pkt, PTYPE_DATA);
-        pkt_set_seqnum(pkt, window->seqnum);
+        pkt_set_seqnum(pkt, window->seqnumTail);
         pkt_set_window(pkt, window->windowsize);
         pkt_set_tr(pkt, 0);
         pkt_set_payload(pkt, copybuf, bytes_read);
@@ -87,6 +103,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
         pkt_set_timestamp(pkt, (uint32_t)timestamp.tv_usec);
 
         linkedList_add_pkt(list, pkt);
+        window->seqnumTail = (window->seqnumTail + 1) % 256;
 
         bytes_read = PKT_MAX_LEN;
         pkt_encode(pkt, copybuf, &bytes_read);
@@ -97,10 +114,8 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
             return -1;
         }
         DEBUG("Sent packet %lld", window->pktnum);
-        window->pktnum++;
-        n_filled++;
-
-        window->seqnum = (window->seqnum + 1) % 256;
+        ++data_sent;
+        ++n_filled;
     }
     return n_filled;
 }
@@ -129,7 +144,8 @@ int resent_pkt(const int sfd, window_pkt_t *window)
                 ERROR("Failed to resent pkt : %s", strerror(errno));
                 return -1;
             }
-            nbr_resent++;
+            ++data_sent;
+            ++nbr_resent;
         }
         if (current == window->linkedList->tail)
             return nbr_resent;
@@ -139,10 +155,72 @@ int resent_pkt(const int sfd, window_pkt_t *window)
 }
 
 /*
+* Print the current state of the window (debug)
+*/
+void print_window(window_pkt_t* window){
+    
+    linkedList_t* list = window->linkedList;
+    node_t* current = window->linkedList->head;
+    if (list->size == 0){
+        printf("List size = 0 !\n");
+        return;
+    }
+    
+    printf("Head %d, tail %d    | ", window->seqnumHead, window->seqnumTail);
+
+    while (1)
+    {
+        printf(" %d ", pkt_get_seqnum(current->pkt));
+        if (current == list->tail)
+            break;
+        current = current->next;
+    }
+    printf("\n");
+}
+
+/*
+* Check if the packet can be removed from the window
+* @return 1 if yes, 0 if no
+*/
+int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
+{
+    /* the window is not cut by the border [-----xxxxxx--] */
+    if (window->seqnumHead >= window->seqnumTail){
+        if (pktSeqnum < ackSeqnum)
+            return 1;
+        else
+            return 0;
+    }
+    /* the window is cut by the border [xx------xxxxx] */
+    else {
+        if (ackSeqnum > window->seqnumTail){    /* [xx------xxxAx] */
+            if (pktSeqnum < ackSeqnum && pktSeqnum > window->seqnumHead) /* [xx------xPxAx] */
+                return 1;
+            else
+                return 0;
+        }
+        if (ackSeqnum < window->seqnumHead){     /* [xxAx------xx] */
+            if (pktSeqnum < window->seqnumHead){ /* [??A?------xx] */
+                if (pktSeqnum < ackSeqnum)       /* [xPAx------xx] */
+                    return 1;
+                else                             /* [xxAP------xx] */
+                    return 0;
+            }
+            if (pktSeqnum > window->seqnumTail)  /* [xA------xPxx] */
+                return 1;
+        }
+    }
+    return 0;
+}
+
+/*
  * Delete from window the acked packets
  */
-int ack_window(window_pkt_t *window, int ack)
+int ack_window(window_pkt_t *window, pkt_t* pkt)
 {
+    uint8_t ackSeqnum = pkt_get_seqnum(pkt);
+    uint32_t timestamp = pkt_get_timestamp(pkt);
+
     linkedList_t* list = window->linkedList;
     node_t* current = list->head;
     node_t* previous = NULL;
@@ -150,16 +228,23 @@ int ack_window(window_pkt_t *window, int ack)
 
     while (current != NULL)
     {
-        if (pkt_get_seqnum(current->pkt) < ack)
+        if (pkt_get_seqnum(current->pkt) < ackSeqnum)//(seqnum_in_window(window, ackSeqnum, pkt_get_seqnum(current->pkt)))
         {
+            uint32_t rtt = pkt_get_timestamp(current->pkt) - timestamp;
+            if (rtt > max_rtt)
+                max_rtt = rtt;
+            else if (rtt < min_rtt)
+                min_rtt = rtt;
+
             if (current == list->head) {
                 linkedList_remove(list);
                 current = list->head;
+                window->seqnumHead = pkt_get_seqnum(current->pkt);
             }
             else if (current == list->tail) {
                 linkedList_remove_end(list);
-                previous = current;
-                current = current->next;
+                window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
+                return no_acked++;
             }
             else {
                 previous->next = current->next;
@@ -173,6 +258,7 @@ int ack_window(window_pkt_t *window, int ack)
             if (list->size == 0){
                 return no_acked;
             }
+            print_window(window);
         } else if (list->size > 1 && current != list->tail) {
             current = current->next;
         } else {
@@ -208,7 +294,7 @@ int resent_nack(const int sfd, window_pkt_t *window, int nack)
 
     error = write(sfd, copybuf, len);
     if (error == -1) {return -1;}
-
+    ++nack_sent;
     return 0;
 }
 
@@ -238,11 +324,12 @@ int update_window(window_pkt_t* window, uint8_t newSize){
         }
     }
     
+    window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
     window->windowsize = newSize;
     return 2;
 }
 
-void read_write_sender(const int sfd, const int fd)
+void read_write_sender(const int sfd, const int fd, const char* stats_filename)
 {
 
     copybuf = (char*) malloc(sizeof(char)*PKT_MAX_LEN);
@@ -255,7 +342,8 @@ void read_write_sender(const int sfd, const int fd)
     window_pkt_t *window = malloc(sizeof(window_pkt_t));
     window->offset = 0;
     window->pktnum = 0;
-    window->seqnum = 0;
+    window->seqnumHead = 0;
+    window->seqnumTail = 0;
     window->windowsize = 1;
     window->linkedList = linkedList_create();
 
@@ -300,11 +388,9 @@ void read_write_sender(const int sfd, const int fd)
             ERROR("error poll");
             return;
         }
-        
         /* Reading incoming packets */
         if (fds[0].revents & POLLIN)
         {
-
             ssize_t bytes_read = read(sfd, copybuf, PKT_MAX_LEN);
   
             pkt_t *pkt = pkt_new();
@@ -317,7 +403,7 @@ void read_write_sender(const int sfd, const int fd)
             }
             else if (pkt_get_type(pkt) == PTYPE_ACK)
             {
-                retval = ack_window(window, pkt_get_seqnum(pkt));
+                retval = ack_window(window, pkt);
                 if (retval != 0)
                     DEBUG("ack_window returned %d for seqnum %d (list size : %d)", retval, pkt_get_seqnum(pkt), window->linkedList->size);
             }
@@ -335,7 +421,29 @@ void read_write_sender(const int sfd, const int fd)
             free(copybuf);
             linkedList_del(window->linkedList);
             free(window);
-            return;
+            break;
         }
     }
+    if (stats_filename != NULL){
+        FILE* f = fopen(stats_filename, "w");
+        if (f == NULL){
+            ERROR("Failed to open file %s : %s", stats_filename, strerror(errno));
+            return;
+        }
+        fprintf(f, "data_sent:%d\n", data_sent);
+        fprintf(f, "data_received:%d\n", data_received);
+        fprintf(f, "data_truncated_received:%d\n", data_truncated_received);
+        fprintf(f, "fec_sent:%d\n", fec_sent);
+        fprintf(f, "fec_received:%d\n", fec_received);
+        fprintf(f, "ack_sent:%d\n", ack_sent);
+        fprintf(f, "ack_received:%d\n", ack_received);
+        fprintf(f, "nack_sent:%d\n", nack_sent);
+        fprintf(f, "nack_received:%d\n", nack_received);
+        fprintf(f, "packet_ignored:%d\n", packet_ignored);
+        fprintf(f, "min_rtt:%d\n", min_rtt);
+        fprintf(f, "max_rtt:%d\n", max_rtt);
+        fprintf(f, "packet_retransmitted:%d\n", packet_retransmitted);
+        fclose(f);
+    }
+    return;
 }
