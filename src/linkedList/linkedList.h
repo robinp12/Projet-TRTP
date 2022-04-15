@@ -45,5 +45,11 @@ int linkedList_remove(linkedList_t* linkedList);
 */
 int linkedList_remove_end(linkedList_t* linkedList);
 
+/*
+* Remove the given node
+* @args node : a node in the linked list, who is not head or tail
+*/
+void linkedList_remove_middle(linkedList_t* linkedList, node_t* previous, node_t* current);
+
 
 #endif

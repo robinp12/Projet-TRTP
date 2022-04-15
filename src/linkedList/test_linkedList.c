@@ -2,6 +2,7 @@
 #include "linkedList.h"
 #include "test_linkedList.h"
 #include "../packet_implem.h"
+#include "../read-write/read_write_sender.h"
 
 pkt_t* dummy_pkt(const char* msg)
 {
@@ -99,6 +100,89 @@ void test_remove_end(void)
     CU_ASSERT_EQUAL(linkedList_del(list), 0);
 }
 
+void test_remove_middle(void)
+{
+    linkedList_t* list = linkedList_create();
+
+    const char* msgs[5] = {"Packet 1\0", "Packet 2\0", "Packet 3\0", "Packet 4\0", "Packet 5\0"};
+
+    for (int i = 0; i < 5; i++)
+    {
+        pkt_t* pkt = dummy_pkt(msgs[i]);
+        linkedList_add_pkt(list, pkt);
+    }
+ 
+    node_t* node1 = list->head;   // Packet 1
+    node_t* node2 = node1->next;  // Packet 2
+
+    const char* msgs_without_2[4] = {msgs[0], msgs[2], msgs[3], msgs[4]};
+
+    linkedList_remove_middle(list, node1, node2);
+    CU_ASSERT_EQUAL(list->size, 4);
+
+    node_t* current = list->head;
+    for (int i = 0; i < 4; i++)
+    {
+        CU_ASSERT_EQUAL(strcmp(pkt_get_payload(current->pkt), msgs_without_2[i]), 0);
+        current = current->next;
+    }
+    
+    const char* msgs_without_24[4] = {msgs[0], msgs[2], msgs[4]};
+
+    node1 = list->head->next;   // Packet 3
+    node2 = node1->next;        // Packet 4
+
+    linkedList_remove_middle(list, node1, node2);
+    CU_ASSERT_EQUAL(list->size, 3);
+
+    current = list->head;
+    for (int i = 0; i < 3; i++)
+    {
+        CU_ASSERT_EQUAL(strcmp(pkt_get_payload(current->pkt), msgs_without_24[i]), 0);
+        current = current->next;
+    }
+    
+
+    CU_ASSERT_EQUAL(linkedList_del(list), 0);
+}
+
+void test_seqnum_in_window(void)
+{
+    window_pkt_t* window = malloc(sizeof(window_pkt_t));
+    
+    /*  [---xxxxx----]  */
+    window->seqnumHead = 10;
+    window->seqnumTail = 20;
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 15, 11), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 15, 15), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 15, 16), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 15, 10), 1);
+
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 21, 20), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 21, 10), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 21, 15), 1);
+
+
+    /*  [xx-------xxx]  */
+    window->seqnumHead = 250;
+    window->seqnumTail = 4;
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 252, 251), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 255, 254), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 251, 250), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 250, 250), 0);
+
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 0, 255), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 0, 0), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 1, 0), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 1, 250), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 1, 1), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 1, 3), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 5, 4), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 4, 4), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 5, 250), 1);
+
+    free(window);
+}
 
 int setup(void) {
     return 0;
@@ -115,21 +199,29 @@ int main()
     }
 
     CU_pSuite suite_basic = NULL;
-    suite_basic = CU_add_suite("Linked list basic suit", setup, teardown);
+    suite_basic = CU_add_suite("Linked list basic suite", setup, teardown);
     if (suite_basic == NULL){
+        CU_cleanup_registry();
+        return CU_get_error();
+    }
+
+    CU_pSuite suite_sender = NULL;
+    suite_sender = CU_add_suite("Sender suite", setup, teardown);
+    if (suite_sender == NULL){
         CU_cleanup_registry();
         return CU_get_error();
     }
 
     if (CU_add_test(suite_basic, "One node", test_one_node) == NULL ||
         CU_add_test(suite_basic, "Multiples nodes", test_multiple_node) == NULL ||
-        CU_add_test(suite_basic, "Remove end", test_remove_end) == NULL){
+        CU_add_test(suite_basic, "Remove end", test_remove_end) == NULL ||
+        CU_add_test(suite_basic, "Remove in the middle", test_remove_middle) == NULL ||
+        CU_add_test(suite_sender, "Seqnum in window", test_seqnum_in_window) == NULL){
         CU_cleanup_registry();
         return CU_get_error();
     }
 
     CU_basic_run_tests();
-    CU_basic_show_failures(CU_get_failure_list());
 
     CU_cleanup_registry();
 

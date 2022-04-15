@@ -20,16 +20,16 @@ uint8_t lastSeqnum = 0;
 uint32_t timestamp;
 
 /* Variables de stats */
-int data_sent = 0;
-int data_received = 0;
-int data_truncated_received = 0;
-int fec_sent = 0;
-int fec_received = 0;
-int ack_sent = 0;
-int ack_received = 0;
-int nack_sent = 0;
-int nack_received = 0;
-int packet_ignored = 0;
+static int data_sent = 0;
+static int data_received = 0;
+static int data_truncated_received = 0;
+static int fec_sent = 0;
+static int fec_received = 0;
+static int ack_sent = 0;
+static int ack_received = 0;
+static int nack_sent = 0;
+static int nack_received = 0;
+static int packet_ignored = 0;
 
 int packet_duplicated = 0;
 int packet_recovered = 0;
@@ -106,7 +106,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
         pkt_t *pkt = pkt_new();
         pkt_decode(buffer, bytes_read, pkt);
-        DEBUG("Receiving packet %ld", window->pktnum);
+        DEBUG("Receiving packet %lld", window->pktnum);
 
         if (pkt_get_type(pkt) == PTYPE_DATA)
         {
@@ -129,7 +129,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
                 if (pkt_get_tr(pkt) == 1)
                 { /* Paquet tronqué */
-                    lastSeqnum = pkt_get_seqnum(pkt);
+                    lastSeqnum = pkt_get_seqnum(pkt); // QUID ?
                     timestamp = pkt_get_timestamp(pkt);
 
                     retval = send_response(sfd, PTYPE_NACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));

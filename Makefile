@@ -4,7 +4,7 @@ CC = gcc-11
 # Feel free to add other C flags
 CFLAGS += -c -std=gnu99 -Wall -Werror -Wextra -O2 
 # By default, we colorize the output, but this might be ugly in log files, so feel free to remove the following line.
-CFLAGS += -D_COLOR
+CFLAGS += -D_COLOR -g
 
 # You may want to add something here
 LDFLAGS += -lz
