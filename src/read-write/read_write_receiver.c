@@ -129,7 +129,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
                 if (pkt_get_tr(pkt) == 1)
                 { /* Paquet tronqué */
-                    lastSeqnum = pkt_get_seqnum(pkt);
+                    lastSeqnum = pkt_get_seqnum(pkt); // QUID ?
                     timestamp = pkt_get_timestamp(pkt);
 
                     retval = send_response(sfd, PTYPE_NACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));

@@ -12,8 +12,8 @@ CFLAGS += -I/usr/local/include -L/usr/local/lib -lcunit -g
 %.o: %.c %.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-test: ../packet_implem.o linkedList.o
-	$(CC) test_linkedList.c -o test $(CFLAGS) ../packet_implem.o linkedList.o
+test: ../packet_implem.o linkedList.o ../read-write/read_write_sender.o
+	$(CC) test_linkedList.c -o test $(CFLAGS) ../packet_implem.o linkedList.o ../read-write/read_write_sender.o 
 
 testValgrind:
 	make test

@@ -2,6 +2,7 @@
 #include "linkedList.h"
 #include "test_linkedList.h"
 #include "../packet_implem.h"
+#include "../read-write/read_write_sender.h"
 
 pkt_t* dummy_pkt(const char* msg)
 {
@@ -99,6 +100,43 @@ void test_remove_end(void)
     CU_ASSERT_EQUAL(linkedList_del(list), 0);
 }
 
+void test_seqnum_in_window(void)
+{
+    window_pkt_t* window = malloc(sizeof(window_pkt_t));
+    
+    /*  [---xxxxx----]  */
+    window->seqnumHead = 10;
+    window->seqnumTail = 20;
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 15, 11), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 15, 15), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 15, 16), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 15, 10), 1);
+
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 21, 20), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 21, 10), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 21, 15), 1);
+
+
+    /*  [xx-------xxx]  */
+    window->seqnumHead = 250;
+    window->seqnumTail = 4;
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 252, 251), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 255, 254), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 251, 250), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 250, 250), 0);
+
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 0, 255), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 0, 0), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 1, 0), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 1, 250), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 1, 1), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 1, 3), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 5, 4), 1);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 4, 4), 0);
+    CU_ASSERT_EQUAL(seqnum_in_window(window, 5, 250), 1);
+
+    free(window);
+}
 
 int setup(void) {
     return 0;
@@ -115,15 +153,23 @@ int main()
     }
 
     CU_pSuite suite_basic = NULL;
-    suite_basic = CU_add_suite("Linked list basic suit", setup, teardown);
+    suite_basic = CU_add_suite("Linked list basic suite", setup, teardown);
     if (suite_basic == NULL){
+        CU_cleanup_registry();
+        return CU_get_error();
+    }
+
+    CU_pSuite suite_sender = NULL;
+    suite_sender = CU_add_suite("Sender suite", setup, teardown);
+    if (suite_sender == NULL){
         CU_cleanup_registry();
         return CU_get_error();
     }
 
     if (CU_add_test(suite_basic, "One node", test_one_node) == NULL ||
         CU_add_test(suite_basic, "Multiples nodes", test_multiple_node) == NULL ||
-        CU_add_test(suite_basic, "Remove end", test_remove_end) == NULL){
+        CU_add_test(suite_basic, "Remove end", test_remove_end) == NULL ||
+        CU_add_test(suite_sender, "Seqnum in window", test_seqnum_in_window) == NULL){
         CU_cleanup_registry();
         return CU_get_error();
     }
