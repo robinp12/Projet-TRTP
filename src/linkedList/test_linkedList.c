@@ -100,6 +100,52 @@ void test_remove_end(void)
     CU_ASSERT_EQUAL(linkedList_del(list), 0);
 }
 
+void test_remove_middle(void)
+{
+    linkedList_t* list = linkedList_create();
+
+    const char* msgs[5] = {"Packet 1\0", "Packet 2\0", "Packet 3\0", "Packet 4\0", "Packet 5\0"};
+
+    for (int i = 0; i < 5; i++)
+    {
+        pkt_t* pkt = dummy_pkt(msgs[i]);
+        linkedList_add_pkt(list, pkt);
+    }
+ 
+    node_t* node1 = list->head;   // Packet 1
+    node_t* node2 = node1->next;  // Packet 2
+
+    const char* msgs_without_2[4] = {msgs[0], msgs[2], msgs[3], msgs[4]};
+
+    linkedList_remove_middle(list, node1, node2);
+    CU_ASSERT_EQUAL(list->size, 4);
+
+    node_t* current = list->head;
+    for (int i = 0; i < 4; i++)
+    {
+        CU_ASSERT_EQUAL(strcmp(pkt_get_payload(current->pkt), msgs_without_2[i]), 0);
+        current = current->next;
+    }
+    
+    const char* msgs_without_24[4] = {msgs[0], msgs[2], msgs[4]};
+
+    node1 = list->head->next;   // Packet 3
+    node2 = node1->next;        // Packet 4
+
+    linkedList_remove_middle(list, node1, node2);
+    CU_ASSERT_EQUAL(list->size, 3);
+
+    current = list->head;
+    for (int i = 0; i < 3; i++)
+    {
+        CU_ASSERT_EQUAL(strcmp(pkt_get_payload(current->pkt), msgs_without_24[i]), 0);
+        current = current->next;
+    }
+    
+
+    CU_ASSERT_EQUAL(linkedList_del(list), 0);
+}
+
 void test_seqnum_in_window(void)
 {
     window_pkt_t* window = malloc(sizeof(window_pkt_t));
@@ -169,13 +215,13 @@ int main()
     if (CU_add_test(suite_basic, "One node", test_one_node) == NULL ||
         CU_add_test(suite_basic, "Multiples nodes", test_multiple_node) == NULL ||
         CU_add_test(suite_basic, "Remove end", test_remove_end) == NULL ||
+        CU_add_test(suite_basic, "Remove in the middle", test_remove_middle) == NULL ||
         CU_add_test(suite_sender, "Seqnum in window", test_seqnum_in_window) == NULL){
         CU_cleanup_registry();
         return CU_get_error();
     }
 
     CU_basic_run_tests();
-    CU_basic_show_failures(CU_get_failure_list());
 
     CU_cleanup_registry();
 

@@ -31,12 +31,13 @@ int linkedList_del(linkedList_t* linkedList)
         return 0;
     }
     node_t* current = linkedList->head;
-    while (current->next != NULL)
+    while (linkedList->size > 0)
     {
         pkt_del(current->pkt);
         node_t* odlNode = current;
         current = current->next;
         free(odlNode);
+        linkedList->size--;
     }
     free(linkedList);
     return 0;
@@ -117,5 +118,13 @@ int linkedList_remove_end(linkedList_t* linkedList)
     linkedList->tail = current;
     linkedList->size--;
     return 0;
+}
+
+void linkedList_remove_middle(linkedList_t* linkedList, node_t* previous, node_t* current)
+{
+    previous->next = current->next;
+    linkedList->size--;
+    pkt_del(current->pkt);
+    free(current);
 }
 

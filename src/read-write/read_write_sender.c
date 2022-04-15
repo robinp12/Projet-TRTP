@@ -179,8 +179,6 @@ void print_window(window_pkt_t* window){
 */
 int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
 {
-    // print_window(window);
-    // printf("ackSeqnum %d, pktSeqnum %d\n", ackSeqnum, pktSeqnum);
     /* the window is not cut by the border [-----xxxxxx--] */
     /*                                     [-----HxxxxT--] */
     if (window->seqnumTail >= window->seqnumHead){
@@ -226,7 +224,8 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
 
     while (current != NULL && seqnum_in_window(window, ackSeqnum, pkt_get_seqnum(current->pkt)))
     {
-        uint32_t rtt = pkt_get_timestamp(current->pkt) - timestamp;
+        uint32_t rtt = (pkt_get_timestamp(current->pkt) - timestamp) / 1000;
+        DEBUG("RTT : %d", rtt);
         if (rtt > max_rtt)
             max_rtt = rtt;
         else if (rtt < min_rtt)
@@ -243,18 +242,13 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
             return no_acked++;
         }
         else {
-            previous->next = current->next;
-            list->size--;
-            node_t* old = current;
-            current = current->next;
-            pkt_del(old->pkt);
-            free(old);
+            linkedList_remove_middle(list, previous, current);
+            current = previous->next;
         }
         no_acked++;
         if (list->size == 0){
             return no_acked;
         }
-        print_window(window);
 
         if (current == list->tail)
             current = NULL;
@@ -371,7 +365,6 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
                 if (retval != 0){
                     DEBUG("fill_window returned %d", retval);
                 }
-                print_window(window);
             }
 
             retval = resent_pkt(sfd, window);
@@ -421,6 +414,7 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
             free(copybuf);
             linkedList_del(window->linkedList);
             free(window);
+            free(fds);
             break;
         }
     }

@@ -73,22 +73,22 @@ int main(int argc, char **argv)
         return print_usage(argv[0]);
     }
 
-    ASSERT(1 == 1);               // Try to change it to see what happens when it fails
-    DEBUG_DUMP("Some bytes", 11); // You can use it with any pointer type
+    // ASSERT(1 == 1);               // Try to change it to see what happens when it fails
+    // DEBUG_DUMP("Some bytes", 11); // You can use it with any pointer type
 
     // This is not an error per-se.
     ERROR("Sender has following arguments: filename is %s, stats_filename is %s, fec_enabled is %d, receiver_ip is %s, receiver_port is %u",
           filename, stats_filename, fec_enabled, receiver_ip, receiver_port);
 
-    DEBUG("You can only see me if %s", "you built me using `make debug`");
-    ERROR("This is not an error, %s", "now let's code!");
+    // DEBUG("You can only see me if %s", "you built me using `make debug`");
+    // ERROR("This is not an error, %s", "now let's code!");
 
     /* From ingnious "Envoyer et recevoir des données" */
 
     char str[INET6_ADDRSTRLEN];
     inet_pton(AF_INET6, receiver_ip, &(receiver_addr.sin6_addr));
     inet_ntop(AF_INET6, &(receiver_addr.sin6_addr), str, INET6_ADDRSTRLEN);
-    printf("IPV6 : %s\n", str);
+    
     /* Resolve the hostname */
     const char *err = real_address(receiver_ip, &receiver_addr);
     if (err)

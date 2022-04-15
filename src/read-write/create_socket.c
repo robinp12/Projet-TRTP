@@ -4,6 +4,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include "../log.h"
 
 /* Creates a socket and initialize it
  * @source_addr: if !NULL, the source address that should be bound to this socket
@@ -19,6 +22,7 @@ int create_socket(struct sockaddr_in6 *source_addr, int src_port, struct sockadd
     int error;
     if (skt == -1)
     {
+        ERROR("Failed to create socket : %s", strerror(errno));
         return -1;
     }
 
@@ -29,6 +33,7 @@ int create_socket(struct sockaddr_in6 *source_addr, int src_port, struct sockadd
         error = bind(skt, (const struct sockaddr *)source_addr, sizeof(struct sockaddr_in6));
         if (error != 0)
         {
+            ERROR("Failed to bind socket");
             return -1;
         }
     }
