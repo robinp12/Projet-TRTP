@@ -1,2 +1,2 @@
-for i in range(10000) : 
+for i in range(500) : 
 	print('this is line ', i)
