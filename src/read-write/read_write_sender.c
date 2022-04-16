@@ -37,28 +37,6 @@ static int packet_retransmitted = 0;  // number of  PTYPE_DATA packets resent (l
 
 
 
-int check_ll_size(window_pkt_t* window)
-{
-    linkedList_t* list = window->linkedList;
-    node_t* current = list->head;
-    int i = 0;
-    while (current != NULL){
-        i++;
-        
-        if (current == list->tail)
-            break;
-        
-        current = current->next;
-    }
-    if (i != window->linkedList->size){
-        printf("list %d, i %d\n", list->size, i);
-        print_window(window);
-    }
-        
-    return i;
-}
-
-
 /*
 * Send final packet
 */
@@ -260,10 +238,8 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
             min_rtt = rtt;
 
         if (current == list->head) {
-            //printf("   previous %d, current %d (remove head)\n", pkt_get_seqnum(previous->pkt), pkt_get_seqnum(current->pkt));
             linkedList_remove(list);
-            ASSERT(check_ll_size(window) == list->size);
-            DEBUG("check %d, size %d", check_ll_size(window), list->size);
+
             current = list->head;
             previous = list->head;
 
@@ -271,7 +247,6 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
                 window->seqnumHead = pkt_get_seqnum(current->pkt);
         }
         else if (current == list->tail) {
-            //printf("   previous %d, current %d (remove tail)\n", pkt_get_seqnum(previous->pkt), pkt_get_seqnum(current->pkt));
             linkedList_remove_end(list);
             
             if (list->size > 0)
@@ -279,19 +254,14 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
             return no_acked++;
         }
         else {
-            //printf("   previous %d, current %d (remove middle)\n", pkt_get_seqnum(previous->pkt), pkt_get_seqnum(current->pkt));
             linkedList_remove_middle(list, previous, current);
-            ASSERT(check_ll_size(window) == list->size);
             current = previous->next;
         }
+
         no_acked++;
         if (list->size == 0){
             return no_acked;
-        }
-
-
-        //printf("   H:%d T:%d can I ack %d ? %d\n", window->seqnumHead, window->seqnumTail, pkt_get_seqnum(current->pkt), seqnum_in_window(window, ackSeqnum, pkt_get_seqnum(current->pkt)));
-        
+        }        
     }
     return no_acked;
 }
@@ -350,7 +320,6 @@ int update_window(window_pkt_t* window, uint8_t newSize){
             ERROR("linkedList_remove_end failed");
             return -1;
         }
-        ASSERT(check_ll_size(window) == list->size);
     }
     
     window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
