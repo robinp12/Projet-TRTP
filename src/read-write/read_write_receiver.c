@@ -106,7 +106,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
         pkt_t *pkt = pkt_new();
         pkt_decode(buffer, bytes_read, pkt);
-        DEBUG("Receiving packet %lld", window->pktnum);
+        DEBUG("Receiving packet %lu", window->pktnum);
 
         if (pkt_get_type(pkt) == PTYPE_DATA)
         {

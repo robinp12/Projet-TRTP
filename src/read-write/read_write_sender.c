@@ -15,8 +15,8 @@
 #define TIMEOUT 2000000
 
 off_t offset = 0;
-char *copybuf;
-int eof_reached;
+static char *copybuf;
+static int eof_reached;
 
 
 
@@ -95,6 +95,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
         pkt_set_timestamp(pkt, (uint32_t)timestamp.tv_usec);
 
         linkedList_add_pkt(list, pkt);
+
         window->seqnumTail = window->seqnumNext;
         window->seqnumNext = (window->seqnumNext + 1) % 256;
         
@@ -107,7 +108,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
             ERROR("Failed to send packet : %s", strerror(errno));
             return -1;
         }
-        DEBUG("Sent packet %lld", window->pktnum);
+
         ++data_sent;
         ++n_filled;
     }
@@ -130,16 +131,17 @@ int resent_pkt(const int sfd, window_pkt_t *window)
     {
         pkt_t *pkt = current->pkt;
         gettimeofday(&timeout, NULL);
-        if (pkt != NULL && (timeout.tv_usec - pkt_get_timestamp(pkt)) > TIMEOUT)
+
+        if (pkt != NULL && ((uint32_t) timeout.tv_usec - pkt_get_timestamp(pkt)) > TIMEOUT)
         {
-            pkt_set_timestamp(pkt, (uint32_t)timeout.tv_usec);
+            pkt_set_timestamp(pkt, (uint32_t) timeout.tv_usec);
             pkt_encode(pkt, copybuf, &bytes_copied);
             if (write(sfd, copybuf, bytes_copied) == -1)
             {
                 ERROR("Failed to resent pkt : %s", strerror(errno));
                 return -1;
             }
-            ++data_sent;
+            ++packet_retransmitted;
             ++nbr_resent;
         }
         if (current == window->linkedList->tail)
@@ -157,11 +159,11 @@ void print_window(window_pkt_t* window){
     linkedList_t* list = window->linkedList;
     node_t* current = window->linkedList->head;
     if (list->size == 0){
-        printf("List size = 0 !\n");
+        printf("[empty list]\n");
         return;
     }
     
-    printf("Head %d, tail %d    | ", window->seqnumHead, window->seqnumTail);
+    printf("Head %d, tail %d, size %d    | ", window->seqnumHead, window->seqnumTail, list->size);
 
     while (1)
     {
@@ -215,33 +217,43 @@ int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
 int ack_window(window_pkt_t *window, pkt_t* pkt)
 {
     uint8_t ackSeqnum = pkt_get_seqnum(pkt);
-    uint32_t timestamp = pkt_get_timestamp(pkt);
+    DEBUG("ack %d", ackSeqnum);
 
     linkedList_t* list = window->linkedList;
+    struct timeval timestamp;
     node_t* current = list->head;
-    node_t* previous = NULL;
+    node_t* previous = list->head;
     int no_acked = 0;
 
     while (current != NULL && seqnum_in_window(window, ackSeqnum, pkt_get_seqnum(current->pkt)))
     {
-        uint32_t rtt = (pkt_get_timestamp(current->pkt) - timestamp) / 1000;
-        DEBUG("RTT : %d", rtt);
+        gettimeofday(&timestamp, NULL);
+        uint32_t rtt = ( (uint32_t) timestamp.tv_usec - pkt_get_timestamp(current->pkt)) / 1000;
+        
         if (rtt > max_rtt)
             max_rtt = rtt;
         else if (rtt < min_rtt)
             min_rtt = rtt;
 
         if (current == list->head) {
+            //printf("   previous %d, current %d (remove head)\n", pkt_get_seqnum(previous->pkt), pkt_get_seqnum(current->pkt));
             linkedList_remove(list);
             current = list->head;
-            window->seqnumHead = pkt_get_seqnum(current->pkt);
+            previous = list->head;
+
+            if (list->size > 0)
+                window->seqnumHead = pkt_get_seqnum(current->pkt);
         }
         else if (current == list->tail) {
+            //printf("   previous %d, current %d (remove tail)\n", pkt_get_seqnum(previous->pkt), pkt_get_seqnum(current->pkt));
             linkedList_remove_end(list);
-            window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
+            
+            if (list->size > 0)
+                window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
             return no_acked++;
         }
         else {
+            //printf("   previous %d, current %d (remove middle)\n", pkt_get_seqnum(previous->pkt), pkt_get_seqnum(current->pkt));
             linkedList_remove_middle(list, previous, current);
             current = previous->next;
         }
@@ -250,10 +262,8 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
             return no_acked;
         }
 
-        if (current == list->tail)
-            current = NULL;
-        else
-            current = current->next;
+
+        //printf("   H:%d T:%d can I ack %d ? %d\n", window->seqnumHead, window->seqnumTail, pkt_get_seqnum(current->pkt), seqnum_in_window(window, ackSeqnum, pkt_get_seqnum(current->pkt)));
         
     }
     return no_acked;
@@ -285,7 +295,7 @@ int resent_nack(const int sfd, window_pkt_t *window, int nack)
 
     error = write(sfd, copybuf, len);
     if (error == -1) {return -1;}
-    ++nack_sent;
+    ++packet_retransmitted;
     return 0;
 }
 
@@ -328,7 +338,10 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
         ERROR("Ne memoire");
         return;
     }
+
     int retval;
+    min_rtt = UINT32_MAX;
+    max_rtt = 0;
 
     window_pkt_t *window = malloc(sizeof(window_pkt_t));
     window->offset = 0;
@@ -362,9 +375,6 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
         {
             if (!eof_reached && window->linkedList->size != window->windowsize){
                 retval = fill_window(fd, sfd, window);
-                if (retval != 0){
-                    DEBUG("fill_window returned %d", retval);
-                }
             }
 
             retval = resent_pkt(sfd, window);
@@ -374,12 +384,6 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
             
         }
 
-        retval = poll(fds, ndfs, -1);
-        if (retval < 0)
-        {
-            ERROR("error poll");
-            return;
-        }
         /* Reading incoming packets */
         if (fds[0].revents & POLLIN)
         {
@@ -388,24 +392,26 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
             pkt_t *pkt = pkt_new();
             pkt_decode(copybuf, bytes_read, pkt);
 
-            if (pkt_get_type(pkt) == PTYPE_NACK)
+            if (pkt_get_tr(pkt) == 0)
             {
-                retval = resent_nack(sfd, window, pkt_get_seqnum(pkt));
-                DEBUG("resent_nack for %d returned %d", pkt_get_seqnum(pkt), retval);
-            }
-            else if (pkt_get_type(pkt) == PTYPE_ACK)
-            {
-                retval = ack_window(window, pkt);
-                if (retval != 0){
-                    DEBUG("ack_window returned %d for seqnum %d (list size : %d)", retval, pkt_get_seqnum(pkt), window->linkedList->size);
+                if (pkt_get_type(pkt) == PTYPE_NACK)
+                {
+                    ++nack_received;
+                    retval = resent_nack(sfd, window, pkt_get_seqnum(pkt));
                 }
+                else if (pkt_get_type(pkt) == PTYPE_ACK)
+                {
+                    ++ack_received;
+                    retval = ack_window(window, pkt);
+                }
+                
+                retval = update_window(window, pkt_get_window(pkt));
+
+                
+            } else {
+                ++packet_ignored;
             }
             
-            retval = update_window(window, pkt_get_window(pkt));
-            if (retval != 0){
-                DEBUG("update_window returned %d", retval);
-            }
-
             pkt_del(pkt);
         }
         if (eof_reached && window->linkedList->size == 0){
