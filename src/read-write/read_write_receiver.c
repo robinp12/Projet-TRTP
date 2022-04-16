@@ -16,6 +16,7 @@ char *buffer;
 int eof_reached_receiver;
 uint8_t lastSeqnum = 0;
 uint32_t timestamp;
+int num_ack = 0;
 
 /* Variables de stats */
 static int data_sent = 0;
@@ -93,70 +94,76 @@ int send_response(const int sfd, int type, uint8_t seqnum, window_pkt_t *window,
 int fill_packet_window(const int sfd, window_pkt_t *window)
 {
     size_t bytes_read;
-    int n_filled = 0;
     int retval;
-    // int ack_window = 0;
 
     linkedList_t *list = window->linkedList;
 
-    while (eof_reached_receiver == 0)
+    bytes_read = read(sfd, buffer, PKT_MAX_LEN);
+    pkt_t *pkt = pkt_new();
+    pkt_decode(buffer, bytes_read, pkt);
+    DEBUG("attendu %d VS %d recu", lastSeqnum, pkt_get_seqnum(pkt));
+
+    if (pkt_get_type(pkt) == PTYPE_DATA)
     {
-        bytes_read = read(sfd, buffer, PKT_MAX_LEN);
-
-        pkt_t *pkt = pkt_new();
-        pkt_decode(buffer, bytes_read, pkt);
-        DEBUG("Receiving packet %ld", window->pktnum);
-
-        if (pkt_get_type(pkt) == PTYPE_DATA)
+        window->windowsize = 4; /* Temporaire */
+        if (pkt_get_length(pkt) <= MAX_PAYLOAD_SIZE)
         {
-            window->windowsize = 4; /* Temporaire */
-            DEBUG("size : %d", list->size);
-
-            if (pkt_get_length(pkt) <= MAX_PAYLOAD_SIZE)
-            {
-                data_received++;
-
-                if (pkt_get_tr(pkt) == 1)
-                { /* Paquet tronqué */
-                    retval = send_response(sfd, PTYPE_NACK, (pkt_get_seqnum(pkt)) % 255, window, pkt_get_timestamp(pkt));
-                    if (retval != PKT_OK)
-                    {
-                        ERROR("Sending nack failed : %d", retval);
-                        return EXIT_FAILURE;
-                    }
-                    DEBUG("send_nack : %d", lastSeqnum);
-                    nack_sent++;
-                    data_truncated_received++;
+            data_received++;
+            if (pkt_get_tr(pkt) == 1)
+            { /* Paquet tronqué */
+                retval = send_response(sfd, PTYPE_NACK, (pkt_get_seqnum(pkt)) % 255, window, pkt_get_timestamp(pkt));
+                if (retval != PKT_OK)
+                {
+                    ERROR("Sending nack failed : %d", retval);
+                    return EXIT_FAILURE;
                 }
+                DEBUG("send_nack : %d", lastSeqnum);
+                nack_sent++;
+                data_truncated_received++;
+            }
 
-                if (pkt_get_tr(pkt) == 0)
-                { /* Paquet non tronqué (OK) */
-                    if (pkt_get_seqnum(pkt) > lastSeqnum)
+            if (pkt_get_tr(pkt) == 0)
+            { /* Paquet non tronqué (OK) */
+                if (pkt_get_seqnum(pkt) > lastSeqnum)
+                { /* Push dans le linkedlist */
+                    if (list->size == 0 ||
+                        (list->size > 0 &&
+                         (pkt_get_seqnum(pkt) > pkt_get_seqnum(list->tail->pkt))))
                     {
                         linkedList_add_pkt(list, pkt);
                     }
-
-                    if (lastSeqnum == pkt_get_seqnum(pkt))
-                    {
-                        int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
-                        if (wr == -1)
-                        {
-                            return EXIT_FAILURE;
-                        }
-                        lastSeqnum++;
-                    }
-
-                    while ((list->size != 0) && (lastSeqnum == pkt_get_seqnum(list->head->pkt)))
-                    {
+                }
+                else
+                {
+                    num_ack++;
+                    while (list->size > 0 && lastSeqnum == pkt_get_seqnum(list->head->pkt))
+                    { /* Prend le paquet s'il est dans le linkedlist */
                         int wr = write(STDOUT_FILENO, pkt_get_payload(list->head->pkt), pkt_get_length(list->head->pkt));
                         if (wr == -1)
                         {
                             return EXIT_FAILURE;
                         }
+                        // DEBUG("\t\t ECRIT %d \t du linked",pkt_get_seqnum(list->head->pkt));
+                        lastSeqnum = pkt_get_seqnum(list->head->pkt) + 1;
                         linkedList_remove(list);
-                        lastSeqnum++;
                     }
+                    if (lastSeqnum <= pkt_get_seqnum(pkt))
+                    { /* Prend le paquet recu */
+                        int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
+                        if (wr == -1)
+                        {
+                            return EXIT_FAILURE;
+                        }
+                        // DEBUG("\t\t ECRIT %d",pkt_get_seqnum(pkt));
+                        lastSeqnum = pkt_get_seqnum(pkt) + 1;
+                    }
+                }
 
+                if (num_ack == window->windowsize || /* Ack apres la reception de la window */
+                    pkt_get_seqnum(pkt) == 0 ||      /*Envoyer premier ack sinon sender envoi pas le suivant */
+                    pkt_get_length(pkt) == 0 ||      /* Ack du dernier paquet */
+                    lastSeqnum < pkt_get_seqnum(pkt))
+                { /* Ack avec le prochain seqnum attendu */
                     retval = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));
                     if (retval != PKT_OK)
                     {
@@ -164,32 +171,31 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
                         return EXIT_FAILURE;
                     }
                     DEBUG("send_ack : %d", lastSeqnum);
-
                     ack_sent++;
-                    if (pkt_get_length(pkt) == 0)
-                    { /* Reception du dernier paquet */
-                        DEBUG("EOF");
-                        eof_reached_receiver = 1;
-                        return EXIT_SUCCESS;
-                    }
+                    num_ack = 0;
+                }
+
+                if (pkt_get_length(pkt) == 0)
+                { /* Reception du dernier paquet */
+                    DEBUG("EOF");
+                    eof_reached_receiver = 1;
+                    return EXIT_SUCCESS;
                 }
             }
-            else
-            {
-                packet_ignored++;
-            }
         }
-        if ((pkt_get_type(pkt) != PTYPE_DATA && pkt_get_tr(pkt) != 0))
-        { /* Paquet ignoré */
+        else
+        {
             packet_ignored++;
-            data_truncated_received++;
         }
-
         window->pktnum++;
-        n_filled++;
+    }
+    if ((pkt_get_type(pkt) != PTYPE_DATA && pkt_get_tr(pkt) != 0))
+    { /* Paquet ignoré */
+        packet_ignored++;
+        data_truncated_received++;
     }
 
-    return n_filled;
+    return window->pktnum;
 }
 
 void read_write_receiver(const int sfd, char *stats_filename)
@@ -228,18 +234,9 @@ void read_write_receiver(const int sfd, char *stats_filename)
             return;
         }
 
-        if ((fds[0].revents & POLLIN) && !eof_reached_receiver)
+        if ((fds[0].revents & POLLIN))
         {
-            if (window->linkedList->size != window->windowsize)
-            {
-                retval = fill_packet_window(sfd, window);
-            }
-
-            // Temporaire : vider la liste sans vérifier si les paquets sont en séquence (pour pouvoir faire avancer le sender, sinon le receiver bloque avec sa fenetre de reception pleine)
-            /* while (window->linkedList->size >= 1)
-            {
-                linkedList_remove(window->linkedList);
-            } */
+            fill_packet_window(sfd, window);
         }
     }
 
