@@ -14,9 +14,9 @@
 
 #define TIMEOUT 2000000
 
-off_t offset = 0;
 static char *copybuf;
-static int eof_reached;
+static int eof_reached = 0; // flag for the end of file
+static int lastPkt = 0;     // flag to send the last packet (end of file and all packets are send)
 
 
 
@@ -42,6 +42,8 @@ static int packet_retransmitted = 0;  // number of  PTYPE_DATA packets resent (l
 */
 int send_final_pkt(const int sfd, window_pkt_t* window)
 {
+    ASSERT(window->linkedList->size == 0);
+
     struct timeval timestamp;
 
     pkt_t* pkt = pkt_new();
@@ -49,18 +51,21 @@ int send_final_pkt(const int sfd, window_pkt_t* window)
     pkt_set_tr(pkt, 0);
     pkt_set_length(pkt, 0);
     pkt_set_window(pkt, window->windowsize);
+    pkt_set_seqnum(pkt, window->seqnumNext);
     gettimeofday(&timestamp, NULL);
     pkt_set_timestamp(pkt, (uint32_t) timestamp.tv_usec);
 
     size_t len = PKT_MAX_LEN;
     if (pkt_encode(pkt, copybuf, &len) != PKT_OK){
+        ERROR("Failed to encode last packet !");
         return -1;
     }
     if (write(sfd, copybuf, len) == -1){
+        ERROR("Failed to send last packet !");
         return -1;
     }
     ++data_sent;
-    pkt_del(pkt);
+    linkedList_add_pkt(window->linkedList, pkt);
     return 0;
 }
 
@@ -387,9 +392,9 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
             ssize_t bytes_read = read(sfd, copybuf, PKT_MAX_LEN);
   
             pkt_t *pkt = pkt_new();
-            pkt_decode(copybuf, bytes_read, pkt);
+            retval = pkt_decode(copybuf, bytes_read, pkt);
 
-            if (pkt_get_tr(pkt) == 0)
+            if (retval == PKT_OK && pkt_get_tr(pkt) == 0)
             {
                 if (pkt_get_type(pkt) == PTYPE_NACK)
                 {
@@ -400,9 +405,26 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
                 {
                     ++ack_received;
                     retval = ack_window(window, pkt);
+
+                    if (!lastPkt && eof_reached && window->linkedList->size == 0)
+                    {
+                        lastPkt = 1;
+                        if (send_final_pkt(sfd, window) != 0)
+                        {
+                            break;
+                        }
+                    }
+                    if (lastPkt && window->linkedList->size == 0)
+                    {
+                        break;
+                    }
                 }
                 
-                retval = update_window(window, pkt_get_window(pkt));
+                if (!lastPkt)
+                {
+                    retval = update_window(window, pkt_get_window(pkt));
+                }
+                
 
                 
             } else {
@@ -412,15 +434,17 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
             pkt_del(pkt);
         }
         if (eof_reached && window->linkedList->size == 0){
-            retval = send_final_pkt(sfd, window);
-            DEBUG("Send final pkt : %d", retval);
-            free(copybuf);
-            linkedList_del(window->linkedList);
-            free(window);
-            free(fds);
-            break;
+            
         }
     }
+
+    /* Frees */
+
+    free(copybuf);
+    linkedList_del(window->linkedList);
+    free(window);
+    free(fds);
+
     if (stats_filename != NULL){
         FILE* f = fopen(stats_filename, "w");
         if (f == NULL){
