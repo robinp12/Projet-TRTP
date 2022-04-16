@@ -29,6 +29,11 @@
     } while (0)
 
 #define ERROR(msg, ...) _LOG(ANSI_COLOR_BRIGHT_RED, "[ERROR] ", msg, ##__VA_ARGS__)
+#define LOG_SENDER(msg, ...)\
+    do {\
+        fprintf(stderr, "[SENDER] " msg "\n", ##__VA_ARGS__);\
+    } while (0)
+    
 
 #ifdef _DEBUG
 #define DEBUG(msg, ...) _LOG(ANSI_COLOR_CYAN, "[DEBUG] ", msg, ##__VA_ARGS__)

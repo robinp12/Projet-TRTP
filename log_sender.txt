@@ -1,0 +1,206 @@
+[91m[ERROR] Sender has following arguments: filename is test.txt, stats_filename is stats.txt, fec_enabled is 0, receiver_ip is ::1, receiver_port is 2000[0m
+[SENDER] Adding packet 0 to the list
+[SENDER] Packet sent with seqnum 1
+[SENDER] Resent packet with seqnum 0
+[SENDER] Received ack with seqnum 1
+[SENDER] Removing from the list packet with seqnum 0
+[SENDER] Window increased
+[SENDER] Adding packet 1 to the list
+[SENDER] Packet sent with seqnum 2
+[SENDER] Adding packet 2 to the list
+[SENDER] Packet sent with seqnum 3
+[SENDER] Adding packet 3 to the list
+[SENDER] Packet sent with seqnum 4
+[SENDER] Adding packet 4 to the list
+[SENDER] Packet sent with seqnum 5
+[SENDER] Received ack with seqnum 1
+[SENDER] Received ack with seqnum 1
+[SENDER] Received ack with seqnum 1
+[SENDER] Received ack with seqnum 1
+[SENDER] Received ack with seqnum 2
+[SENDER] Removing from the list packet with seqnum 1
+[SENDER] Adding packet 5 to the list
+[SENDER] Packet sent with seqnum 6
+[SENDER] Received ack with seqnum 2
+[SENDER] Resent packet with seqnum 2
+[SENDER] Resent packet with seqnum 3
+[SENDER] Resent packet with seqnum 4
+[SENDER] Resent packet with seqnum 5
+[SENDER] Received ack with seqnum 2
+[SENDER] Received ack with seqnum 2
+[SENDER] Received ack with seqnum 3
+[SENDER] Removing from the list packet with seqnum 2
+[SENDER] Adding packet 6 to the list
+[SENDER] Packet sent with seqnum 7
+[SENDER] Received ack with seqnum 3
+[SENDER] Received ack with seqnum 3
+[SENDER] Resent packet with seqnum 3
+[SENDER] Resent packet with seqnum 4
+[SENDER] Resent packet with seqnum 5
+[SENDER] Resent packet with seqnum 6
+[SENDER] Received ack with seqnum 3
+[SENDER] Received ack with seqnum 3
+[SENDER] Received ack with seqnum 3
+[SENDER] Received ack with seqnum 5
+[SENDER] Removing from the list packet with seqnum 3
+[SENDER] Removing from the list packet with seqnum 4
+[SENDER] Adding packet 7 to the list
+[SENDER] Packet sent with seqnum 8
+[SENDER] Adding packet 8 to the list
+[SENDER] Packet sent with seqnum 9
+[SENDER] Received ack with seqnum 5
+[SENDER] Received ack with seqnum 5
+[SENDER] Resent packet with seqnum 5
+[SENDER] Resent packet with seqnum 6
+[SENDER] Resent packet with seqnum 7
+[SENDER] Resent packet with seqnum 8
+[SENDER] Received ack with seqnum 6
+[SENDER] Removing from the list packet with seqnum 5
+[SENDER] Adding packet 9 to the list
+[SENDER] Packet sent with seqnum 10
+[SENDER] Received ack with seqnum 6
+[SENDER] Received ack with seqnum 7
+[SENDER] Removing from the list packet with seqnum 6
+[SENDER] Adding packet 10 to the list
+[SENDER] Packet sent with seqnum 11
+[SENDER] Received ack with seqnum 7
+[SENDER] Received ack with seqnum 7
+[SENDER] Received ack with seqnum 7
+[SENDER] Resent packet with seqnum 7
+[SENDER] Resent packet with seqnum 8
+[SENDER] Resent packet with seqnum 9
+[SENDER] Resent packet with seqnum 10
+[SENDER] Received ack with seqnum 8
+[SENDER] Removing from the list packet with seqnum 7
+[SENDER] Adding packet 11 to the list
+[SENDER] Packet sent with seqnum 12
+[SENDER] Received ack with seqnum 8
+[SENDER] Received ack with seqnum 8
+[SENDER] Received ack with seqnum 9
+[SENDER] Removing from the list packet with seqnum 8
+[SENDER] Adding packet 12 to the list
+[SENDER] Packet sent with seqnum 13
+[SENDER] Received ack with seqnum 9
+[SENDER] Received ack with seqnum 9
+[SENDER] Resent packet with seqnum 9
+[SENDER] Resent packet with seqnum 10
+[SENDER] Resent packet with seqnum 11
+[SENDER] Resent packet with seqnum 12
+[SENDER] Received ack with seqnum 9
+[SENDER] Received ack with seqnum 9
+[SENDER] Received ack with seqnum 9
+[SENDER] Received ack with seqnum 10
+[SENDER] Removing from the list packet with seqnum 9
+[SENDER] Adding packet 13 to the list
+[SENDER] Packet sent with seqnum 14
+[SENDER] Received ack with seqnum 10
+[SENDER] Resent packet with seqnum 10
+[SENDER] Resent packet with seqnum 11
+[SENDER] Resent packet with seqnum 12
+[SENDER] Resent packet with seqnum 13
+[SENDER] Received ack with seqnum 10
+[SENDER] Received ack with seqnum 10
+[SENDER] Received ack with seqnum 11
+[SENDER] Removing from the list packet with seqnum 10
+[SENDER] Adding packet 14 to the list
+[SENDER] Packet sent with seqnum 15
+[SENDER] Received ack with seqnum 11
+[SENDER] Received ack with seqnum 11
+[SENDER] Resent packet with seqnum 11
+[SENDER] Resent packet with seqnum 12
+[SENDER] Resent packet with seqnum 14
+[SENDER] Received ack with seqnum 12
+[SENDER] Removing from the list packet with seqnum 11
+[SENDER] Adding packet 15 to the list
+[SENDER] Packet sent with seqnum 16
+[SENDER] Received ack with seqnum 12
+[SENDER] Received ack with seqnum 13
+[SENDER] Removing from the list packet with seqnum 12
+[SENDER] Adding packet 16 to the list
+[SENDER] Packet sent with seqnum 17
+[SENDER] Received ack with seqnum 13
+[SENDER] Received ack with seqnum 13
+[SENDER] Resent packet with seqnum 13
+[SENDER] Resent packet with seqnum 14
+[SENDER] Resent packet with seqnum 15
+[SENDER] Resent packet with seqnum 16
+[SENDER] Received ack with seqnum 14
+[SENDER] Removing from the list packet with seqnum 13
+[SENDER] Adding packet 17 to the list
+[SENDER] Packet sent with seqnum 18
+[SENDER] Received ack with seqnum 14
+[SENDER] Received ack with seqnum 15
+[SENDER] Removing from the list packet with seqnum 14
+[SENDER] Adding packet 18 to the list
+[SENDER] Packet sent with seqnum 19
+[SENDER] Received ack with seqnum 16
+[SENDER] Removing from the list packet with seqnum 15
+[SENDER] Adding packet 19 to the list
+[SENDER] Packet sent with seqnum 20
+[SENDER] Received ack with seqnum 16
+[SENDER] Received ack with seqnum 16
+[SENDER] Received ack with seqnum 16
+[SENDER] Resent packet with seqnum 16
+[SENDER] Resent packet with seqnum 17
+[SENDER] Resent packet with seqnum 18
+[SENDER] Resent packet with seqnum 19
+[SENDER] Received ack with seqnum 16
+[SENDER] Received ack with seqnum 16
+[SENDER] Received ack with seqnum 17
+[SENDER] Removing from the list packet with seqnum 16
+[SENDER] Adding packet 20 to the list
+[SENDER] Packet sent with seqnum 21
+[SENDER] Received ack with seqnum 17
+[SENDER] Received ack with seqnum 17
+[SENDER] Resent packet with seqnum 17
+[SENDER] Resent packet with seqnum 18
+[SENDER] Resent packet with seqnum 19
+[SENDER] Resent packet with seqnum 20
+[SENDER] Received ack with seqnum 17
+[SENDER] Received ack with seqnum 18
+[SENDER] Removing from the list packet with seqnum 17
+[SENDER] Adding packet 21 to the list
+[SENDER] Packet sent with seqnum 22
+[SENDER] Received ack with seqnum 19
+[SENDER] Removing from the list packet with seqnum 18
+[SENDER] Adding packet 22 to the list
+[SENDER] Packet sent with seqnum 23
+[SENDER] Received ack with seqnum 19
+[SENDER] Received ack with seqnum 19
+[SENDER] Received ack with seqnum 19
+[SENDER] Resent packet with seqnum 19
+[SENDER] Resent packet with seqnum 20
+[SENDER] Resent packet with seqnum 21
+[SENDER] Resent packet with seqnum 22
+[SENDER] Received ack with seqnum 19
+[SENDER] Received ack with seqnum 19
+[SENDER] Received ack with seqnum 19
+[SENDER] Received ack with seqnum 20
+[SENDER] Removing from the list packet with seqnum 19
+[SENDER] Adding packet 23 to the list
+[SENDER] Packet sent with seqnum 24
+[SENDER] Received ack with seqnum 20
+[SENDER] Resent packet with seqnum 21
+[SENDER] Resent packet with seqnum 22
+[SENDER] Resent packet with seqnum 23
+[SENDER] Received ack with seqnum 20
+[SENDER] Received ack with seqnum 20
+[SENDER] Received ack with seqnum 20
+[SENDER] Resent packet with seqnum 22
+[SENDER] Resent packet with seqnum 23
+[SENDER] Received ack with seqnum 20
+[SENDER] Received ack with seqnum 20
+[SENDER] Resent packet with seqnum 20
+[SENDER] Resent packet with seqnum 23
+[SENDER] Received ack with seqnum 20
+[SENDER] Received ack with seqnum 21
+[SENDER] Removing from the list packet with seqnum 20
+[SENDER] Adding packet 24 to the list
+[SENDER] Packet sent with seqnum 25
+[SENDER] Received ack with seqnum 21
+[SENDER] Resent packet with seqnum 23
+[SENDER] Resent packet with seqnum 24
+[SENDER] Received ack with seqnum 21
+[SENDER] Received ack with seqnum 21
+[SENDER] Resent packet with seqnum 24
+[SENDER] Received ack with seqnum 21

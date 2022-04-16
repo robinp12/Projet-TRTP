@@ -36,7 +36,6 @@ static uint32_t max_rtt;              // maximum time (in milliseconds) between 
 static int packet_retransmitted = 0;  // number of  PTYPE_DATA packets resent (loss, truncation or corruption)
 
 
-
 /*
 * Send final packet
 */
@@ -54,7 +53,7 @@ int send_final_pkt(const int sfd, window_pkt_t* window)
     pkt_set_seqnum(pkt, window->seqnumNext);
     gettimeofday(&timestamp, NULL);
     pkt_set_timestamp(pkt, (uint32_t) timestamp.tv_usec);
-
+    
     size_t len = PKT_MAX_LEN;
     if (pkt_encode(pkt, copybuf, &len) != PKT_OK){
         ERROR("Failed to encode last packet !");
@@ -66,6 +65,7 @@ int send_final_pkt(const int sfd, window_pkt_t* window)
     }
     ++data_sent;
     linkedList_add_pkt(window->linkedList, pkt);
+    LOG_SENDER("Final packet sent with seqnum %d", window->seqnumNext);
     return 0;
 }
 
@@ -101,6 +101,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
         pkt_set_timestamp(pkt, (uint32_t)timestamp.tv_usec);
 
         linkedList_add_pkt(list, pkt);
+        LOG_SENDER("Adding packet %d to the list", window->seqnumNext);
       
         window->seqnumTail = window->seqnumNext;
         window->seqnumNext = (window->seqnumNext + 1) % 256;
@@ -115,6 +116,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
             return -1;
         }
 
+        LOG_SENDER("Packet sent with seqnum %d", window->seqnumNext);
         ++data_sent;
         ++n_filled;
     }
@@ -141,12 +143,14 @@ int resent_pkt(const int sfd, window_pkt_t *window)
         if (pkt != NULL && ((uint32_t) timeout.tv_usec - pkt_get_timestamp(pkt)) > TIMEOUT)
         {
             pkt_set_timestamp(pkt, (uint32_t) timeout.tv_usec);
+            bytes_copied = PKT_MAX_LEN;
             pkt_encode(pkt, copybuf, &bytes_copied);
             if (write(sfd, copybuf, bytes_copied) == -1)
             {
                 ERROR("Failed to resent pkt : %s", strerror(errno));
                 return -1;
             }
+            LOG_SENDER("Resent packet with seqnum %d", pkt_get_seqnum(pkt));
             ++packet_retransmitted;
             ++nbr_resent;
         }
@@ -236,6 +240,7 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
 
         gettimeofday(&timestamp, NULL);
         uint32_t rtt = ( (uint32_t) timestamp.tv_usec - pkt_get_timestamp(current->pkt)) / 1000;
+        LOG_SENDER("Removing from the list packet with seqnum %d", pkt_get_seqnum(current->pkt));
         
         if (rtt > max_rtt)
             max_rtt = rtt;
@@ -276,7 +281,7 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
  */
 int resent_nack(const int sfd, window_pkt_t *window, int nack)
 {
-    size_t len;
+    size_t len = PKT_MAX_LEN;
     int error;
     node_t* current = window->linkedList->head;
 
@@ -285,6 +290,7 @@ int resent_nack(const int sfd, window_pkt_t *window, int nack)
         current = current->next;
     }
     if (current == NULL){
+        LOG_SENDER("Failed to find packet with seqnum %d", nack);
         return -1;
     }
 
@@ -297,6 +303,7 @@ int resent_nack(const int sfd, window_pkt_t *window, int nack)
 
     error = write(sfd, copybuf, len);
     if (error == -1) {return -1;}
+    LOG_SENDER("Reesnt packet with seqnum %d (nack)", pkt_get_seqnum(current->pkt));
     ++packet_retransmitted;
     return 0;
 }
@@ -315,6 +322,7 @@ int update_window(window_pkt_t* window, uint8_t newSize){
     }
     if (newSize > window->windowsize){
         window->windowsize = newSize;
+        LOG_SENDER("Window increased");
         return 1;
     }
 
@@ -329,6 +337,7 @@ int update_window(window_pkt_t* window, uint8_t newSize){
     
     window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
     window->windowsize = newSize;
+    LOG_SENDER("Window decreased");
     return 2;
 }
 
@@ -399,11 +408,13 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
                 if (pkt_get_type(pkt) == PTYPE_NACK)
                 {
                     ++nack_received;
+                    LOG_SENDER("Received nack with seqnum %d", pkt_get_seqnum(pkt));
                     retval = resent_nack(sfd, window, pkt_get_seqnum(pkt));
                 }
                 else if (pkt_get_type(pkt) == PTYPE_ACK)
                 {
                     ++ack_received;
+                    LOG_SENDER("Received ack with seqnum %d", pkt_get_seqnum(pkt));
                     retval = ack_window(window, pkt);
 
                     if (!lastPkt && eof_reached && window->linkedList->size == 0)
@@ -411,11 +422,13 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
                         lastPkt = 1;
                         if (send_final_pkt(sfd, window) != 0)
                         {
+                            pkt_del(pkt);
                             break;
                         }
                     }
                     if (lastPkt && window->linkedList->size == 0)
                     {
+                        pkt_del(pkt);
                         break;
                     }
                 }
