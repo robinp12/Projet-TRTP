@@ -7,12 +7,10 @@
 #include <errno.h>
 #include <sys/socket.h>
 
-#include "read_write_loop.h"
+#include "read_write_receiver.h"
 #include "../packet_implem.h"
 #include "../linkedList/linkedList.h"
 #include "../log.h"
-
-#define TIMEOUT 2000000
 
 char *buffer;
 int eof_reached_receiver;
@@ -97,6 +95,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
     size_t bytes_read;
     int n_filled = 0;
     int retval;
+    // int ack_window = 0;
 
     linkedList_t *list = window->linkedList;
 
@@ -106,22 +105,12 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
         pkt_t *pkt = pkt_new();
         pkt_decode(buffer, bytes_read, pkt);
-        DEBUG("Receiving packet %lu", window->pktnum);
+        DEBUG("Receiving packet %ld", window->pktnum);
 
         if (pkt_get_type(pkt) == PTYPE_DATA)
         {
-            // window->windowsize = pkt_get_window(pkt);
             window->windowsize = 4; /* Temporaire */
-            // printf("linkedlist size : %d\n",window->linkedList->size);
-
-            if (window->linkedList->size <= window->windowsize)
-            {
-                linkedList_add_pkt(list, pkt);
-            }
-            if (window->linkedList->size > window->windowsize)
-            {
-                linkedList_remove(list);
-            }
+            DEBUG("size : %d", list->size);
 
             if (pkt_get_length(pkt) <= MAX_PAYLOAD_SIZE)
             {
@@ -129,10 +118,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
                 if (pkt_get_tr(pkt) == 1)
                 { /* Paquet tronqué */
-                    lastSeqnum = pkt_get_seqnum(pkt); // QUID ?
-                    timestamp = pkt_get_timestamp(pkt);
-
-                    retval = send_response(sfd, PTYPE_NACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));
+                    retval = send_response(sfd, PTYPE_NACK, (pkt_get_seqnum(pkt)) % 255, window, pkt_get_timestamp(pkt));
                     if (retval != PKT_OK)
                     {
                         ERROR("Sending nack failed : %d", retval);
@@ -145,14 +131,33 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
                 if (pkt_get_tr(pkt) == 0)
                 { /* Paquet non tronqué (OK) */
-                    lastSeqnum = pkt_get_seqnum(pkt) + 1;
-                    timestamp = pkt_get_timestamp(pkt);
-                    int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
-                    if (wr == -1)
+                    if (pkt_get_seqnum(pkt) > lastSeqnum)
                     {
-                        return EXIT_FAILURE;
+                        linkedList_add_pkt(list, pkt);
                     }
-                    retval = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, timestamp);
+
+                    if (lastSeqnum == pkt_get_seqnum(pkt))
+                    {
+                        int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
+                        if (wr == -1)
+                        {
+                            return EXIT_FAILURE;
+                        }
+                        lastSeqnum++;
+                    }
+
+                    while ((list->size != 0) && (lastSeqnum == pkt_get_seqnum(list->head->pkt)))
+                    {
+                        int wr = write(STDOUT_FILENO, pkt_get_payload(list->head->pkt), pkt_get_length(list->head->pkt));
+                        if (wr == -1)
+                        {
+                            return EXIT_FAILURE;
+                        }
+                        linkedList_remove(list);
+                        lastSeqnum++;
+                    }
+
+                    retval = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));
                     if (retval != PKT_OK)
                     {
                         ERROR("Sending ack failed : %d", retval);
