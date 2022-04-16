@@ -15,8 +15,8 @@
 #define TIMEOUT 2000000
 
 off_t offset = 0;
-char *copybuf;
-int eof_reached;
+static char *copybuf;
+static int eof_reached;
 
 
 
@@ -34,6 +34,29 @@ static int packet_ignored = 0;        // number of ignored packets
 static uint32_t min_rtt;              // minimum time (in milliseconds) between the sending of a PTYPE_DATA packet and the receiving of the corresponding PTYPE_ACK packet
 static uint32_t max_rtt;              // maximum time (in milliseconds) between the sending of a PTYPE_DATA packet and the receiving of the corresponding PTYPE_ACK packet
 static int packet_retransmitted = 0;  // number of  PTYPE_DATA packets resent (loss, truncation or corruption)
+
+
+
+int check_ll_size(window_pkt_t* window)
+{
+    linkedList_t* list = window->linkedList;
+    node_t* current = list->head;
+    int i = 0;
+    while (current != NULL){
+        i++;
+        
+        if (current == list->tail)
+            break;
+        
+        current = current->next;
+    }
+    if (i != window->linkedList->size){
+        printf("list %d, i %d\n", list->size, i);
+        print_window(window);
+    }
+        
+    return i;
+}
 
 
 /*
@@ -95,6 +118,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
         pkt_set_timestamp(pkt, (uint32_t)timestamp.tv_usec);
 
         linkedList_add_pkt(list, pkt);
+        ASSERT(check_ll_size(window) == list->size);
         window->seqnumTail = window->seqnumNext;
         window->seqnumNext = (window->seqnumNext + 1) % 256;
         
@@ -107,7 +131,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
             ERROR("Failed to send packet : %s", strerror(errno));
             return -1;
         }
-        DEBUG("Sent packet %lld", window->pktnum);
+        DEBUG("Sent packet %lu", window->pktnum);
         ++data_sent;
         ++n_filled;
     }
@@ -130,7 +154,8 @@ int resent_pkt(const int sfd, window_pkt_t *window)
     {
         pkt_t *pkt = current->pkt;
         gettimeofday(&timeout, NULL);
-        if (pkt != NULL && (timeout.tv_usec - pkt_get_timestamp(pkt)) > TIMEOUT)
+
+        if (pkt != NULL && ((uint32_t) timeout.tv_usec - pkt_get_timestamp(pkt)) > TIMEOUT)
         {
             pkt_set_timestamp(pkt, (uint32_t)timeout.tv_usec);
             pkt_encode(pkt, copybuf, &bytes_copied);
@@ -157,11 +182,11 @@ void print_window(window_pkt_t* window){
     linkedList_t* list = window->linkedList;
     node_t* current = window->linkedList->head;
     if (list->size == 0){
-        printf("List size = 0 !\n");
+        printf("[empty list]\n");
         return;
     }
     
-    printf("Head %d, tail %d    | ", window->seqnumHead, window->seqnumTail);
+    printf("Head %d, tail %d, size %d    | ", window->seqnumHead, window->seqnumTail, list->size);
 
     while (1)
     {
@@ -219,13 +244,14 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
 
     linkedList_t* list = window->linkedList;
     node_t* current = list->head;
-    node_t* previous = NULL;
+    node_t* previous = list->head;
     int no_acked = 0;
 
     while (current != NULL && seqnum_in_window(window, ackSeqnum, pkt_get_seqnum(current->pkt)))
     {
         uint32_t rtt = (pkt_get_timestamp(current->pkt) - timestamp) / 1000;
-        DEBUG("RTT : %d", rtt);
+        ASSERT(check_ll_size(window) == list->size);
+        DEBUG("check %d, size %d", check_ll_size(window), list->size);
         if (rtt > max_rtt)
             max_rtt = rtt;
         else if (rtt < min_rtt)
@@ -233,16 +259,20 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
 
         if (current == list->head) {
             linkedList_remove(list);
+            ASSERT(check_ll_size(window) == list->size);
+            DEBUG("check %d, size %d", check_ll_size(window), list->size);
             current = list->head;
             window->seqnumHead = pkt_get_seqnum(current->pkt);
         }
         else if (current == list->tail) {
             linkedList_remove_end(list);
+            ASSERT(check_ll_size(window) == list->size);
             window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
             return no_acked++;
         }
         else {
             linkedList_remove_middle(list, previous, current);
+            ASSERT(check_ll_size(window) == list->size);
             current = previous->next;
         }
         no_acked++;
@@ -313,6 +343,7 @@ int update_window(window_pkt_t* window, uint8_t newSize){
             ERROR("linkedList_remove_end failed");
             return -1;
         }
+        ASSERT(check_ll_size(window) == list->size);
     }
     
     window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
