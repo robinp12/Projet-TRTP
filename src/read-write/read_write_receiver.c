@@ -78,7 +78,6 @@ int send_response(const int sfd, int type, uint8_t seqnum, window_pkt_t *window,
         return EXIT_FAILURE;
     }
 
-
     if (write(sfd, buffer, len) == -1)
     {
         ERROR("Failed to send packet : %s", strerror(errno));
@@ -101,15 +100,38 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
 
     bytes_read = read(sfd, buffer, PKT_MAX_LEN);
     pkt_t *pkt = pkt_new();
-    pkt_decode(buffer, bytes_read, pkt);
+    retval = pkt_decode(buffer, bytes_read, pkt);
     DEBUG("attendu %d VS %d recu", lastSeqnum, pkt_get_seqnum(pkt));
 
-    if (pkt_get_type(pkt) == PTYPE_DATA)
+    if ((pkt_get_type(pkt) != PTYPE_DATA) && (pkt_get_tr(pkt) != 0))
+    { /* Paquet ignoré */
+        packet_ignored++;
+        data_truncated_received++;
+    }
+
+    if (pkt_get_type(pkt) == PTYPE_DATA && retval == E_CRC)
+    { /* Paquet tronqué erreur crc */
+        data_received++;
+        int ret;
+        ret = send_response(sfd, PTYPE_NACK, (pkt_get_seqnum(pkt)) % 255, window, pkt_get_timestamp(pkt));
+        if (ret != PKT_OK)
+        {
+            ERROR("Sending nack failed : %d", ret);
+            return EXIT_FAILURE;
+        }
+        DEBUG("send_nack : %d", lastSeqnum);
+
+        packet_ignored++;
+        data_truncated_received++;
+    }
+
+    if (pkt_get_type(pkt) == PTYPE_DATA && retval != E_CRC)
     {
+        data_received++;
         window->windowsize = 4; /* Temporaire */
+
         if (pkt_get_length(pkt) <= MAX_PAYLOAD_SIZE)
         {
-            data_received++;
             if (pkt_get_tr(pkt) == 1)
             { /* Paquet tronqué */
                 retval = send_response(sfd, PTYPE_NACK, (pkt_get_seqnum(pkt)) % 255, window, pkt_get_timestamp(pkt));
@@ -119,6 +141,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
                     return EXIT_FAILURE;
                 }
                 DEBUG("send_nack : %d", lastSeqnum);
+
                 nack_sent++;
                 data_truncated_received++;
             }
@@ -134,30 +157,30 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
                         linkedList_add_pkt(list, pkt);
                     }
                 }
-                else
-                {
+                else if (list->size > 0 && lastSeqnum == pkt_get_seqnum(list->head->pkt))
+                { /* Prend le paquet s'il est dans le linkedlist */
+                    int wr = write(STDOUT_FILENO, pkt_get_payload(list->head->pkt), pkt_get_length(list->head->pkt));
+                    if (wr == -1)
+                    {
+                        return EXIT_FAILURE;
+                    }
+                    // DEBUG("\t\t ECRIT %d \t du linked",pkt_get_seqnum(list->head->pkt));
+                    lastSeqnum = pkt_get_seqnum(list->head->pkt) + 1;
                     num_ack++;
-                    while (list->size > 0 && lastSeqnum == pkt_get_seqnum(list->head->pkt))
-                    { /* Prend le paquet s'il est dans le linkedlist */
-                        int wr = write(STDOUT_FILENO, pkt_get_payload(list->head->pkt), pkt_get_length(list->head->pkt));
-                        if (wr == -1)
-                        {
-                            return EXIT_FAILURE;
-                        }
-                        // DEBUG("\t\t ECRIT %d \t du linked",pkt_get_seqnum(list->head->pkt));
-                        lastSeqnum = pkt_get_seqnum(list->head->pkt) + 1;
-                        linkedList_remove(list);
+
+                    linkedList_remove(list);
+                }
+                else if (lastSeqnum == pkt_get_seqnum(pkt))
+                { /* Prend le paquet recu */
+                    DEBUG("lastseqnum : %d | getseqnum : %d ", lastSeqnum, pkt_get_seqnum(pkt));
+                    int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
+                    if (wr == -1)
+                    {
+                        return EXIT_FAILURE;
                     }
-                    if (lastSeqnum <= pkt_get_seqnum(pkt))
-                    { /* Prend le paquet recu */
-                        int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
-                        if (wr == -1)
-                        {
-                            return EXIT_FAILURE;
-                        }
-                        // DEBUG("\t\t ECRIT %d",pkt_get_seqnum(pkt));
-                        lastSeqnum = pkt_get_seqnum(pkt) + 1;
-                    }
+                    // DEBUG("\t\t ECRIT %d",pkt_get_seqnum(pkt));
+                    lastSeqnum = pkt_get_seqnum(pkt) + 1;
+                    num_ack++;
                 }
 
                 if (num_ack == window->windowsize || /* Ack apres la reception de la window */
@@ -172,6 +195,7 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
                         return EXIT_FAILURE;
                     }
                     DEBUG("send_ack : %d", lastSeqnum);
+
                     ack_sent++;
                     num_ack = 0;
                 }
@@ -190,12 +214,6 @@ int fill_packet_window(const int sfd, window_pkt_t *window)
         }
         window->pktnum++;
     }
-    if ((pkt_get_type(pkt) != PTYPE_DATA && pkt_get_tr(pkt) != 0))
-    { /* Paquet ignoré */
-        packet_ignored++;
-        data_truncated_received++;
-    }
-
     return window->pktnum;
 }
 
