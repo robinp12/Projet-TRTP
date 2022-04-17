@@ -6,13 +6,14 @@
 #include <errno.h>
 #include <poll.h>
 #include <sys/socket.h>
+#include <time.h>
 
 #include "read_write_sender.h"
 #include "../packet_implem.h"
 #include "../linkedList/linkedList.h"
 #include "../log.h"
 
-#define TIMEOUT 2000000
+#define TIMEOUT 300
 
 static char *copybuf;
 static int eof_reached = 0; // flag for the end of file
@@ -37,22 +38,27 @@ static int packet_retransmitted = 0;  // number of  PTYPE_DATA packets resent (l
 
 
 /*
+* Return the time in millisecond since epoch
+*/
+uint32_t time_millis(void){
+    struct timespec tp;
+    clock_gettime(CLOCK_REALTIME, &tp);
+    return tp.tv_sec * 1000 + tp.tv_nsec/1000000;
+}
+
+/*
 * Send final packet
 */
 int send_final_pkt(const int sfd, window_pkt_t* window)
 {
-    ASSERT(window->linkedList->size == 0);
-
-    struct timeval timestamp;
-
     pkt_t* pkt = pkt_new();
     pkt_set_type(pkt, PTYPE_DATA);
     pkt_set_tr(pkt, 0);
     pkt_set_length(pkt, 0);
     pkt_set_window(pkt, window->windowsize);
     pkt_set_seqnum(pkt, window->seqnumNext);
-    gettimeofday(&timestamp, NULL);
-    pkt_set_timestamp(pkt, (uint32_t) timestamp.tv_usec);
+    
+    pkt_set_timestamp(pkt, time_millis());
     
     size_t len = PKT_MAX_LEN;
     if (pkt_encode(pkt, copybuf, &len) != PKT_OK){
@@ -75,7 +81,7 @@ int send_final_pkt(const int sfd, window_pkt_t* window)
 int fill_window(const int fd, const int sfd, window_pkt_t *window)
 {
     size_t bytes_read;
-    struct timeval timestamp;
+
     int n_filled = 0;
     
     linkedList_t* list = window->linkedList;
@@ -97,15 +103,11 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
         pkt_set_window(pkt, window->windowsize);
         pkt_set_tr(pkt, 0);
         pkt_set_payload(pkt, copybuf, bytes_read);
-        gettimeofday(&timestamp, NULL);
-        pkt_set_timestamp(pkt, (uint32_t)timestamp.tv_usec);
+
+        pkt_set_timestamp(pkt, time_millis());
 
         linkedList_add_pkt(list, pkt);
         LOG_SENDER("Adding packet %d to the list", window->seqnumNext);
-      
-        window->seqnumTail = window->seqnumNext;
-        window->seqnumNext = (window->seqnumNext + 1) % 256;
-        
 
         bytes_read = PKT_MAX_LEN;
         pkt_encode(pkt, copybuf, &bytes_read);
@@ -117,6 +119,10 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
         }
 
         LOG_SENDER("Packet sent with seqnum %d", window->seqnumNext);
+
+        window->seqnumTail = window->seqnumNext;
+        window->seqnumNext = (window->seqnumNext + 1) % 256;
+
         ++data_sent;
         ++n_filled;
     }
@@ -130,7 +136,6 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
 int resent_pkt(const int sfd, window_pkt_t *window)
 {
     int nbr_resent = 0;
-    struct timeval timeout;
     size_t bytes_copied;
 
     node_t* current = window->linkedList->head;
@@ -138,11 +143,12 @@ int resent_pkt(const int sfd, window_pkt_t *window)
     while (current != NULL)
     {
         pkt_t *pkt = current->pkt;
-        gettimeofday(&timeout, NULL);
+        uint32_t time = time_millis();
+        //DEBUG("%d > %d ? %d", ((uint32_t) timeout.tv_nsec - pkt_get_timestamp(pkt))/1000, (uint32_t) TIMEOUT/1000, (((uint32_t) timeout.tv_nsec - pkt_get_timestamp(pkt)) > TIMEOUT));
 
-        if (pkt != NULL && ((uint32_t) timeout.tv_usec - pkt_get_timestamp(pkt)) > TIMEOUT)
+        if (pkt != NULL && (time - pkt_get_timestamp(pkt)) > TIMEOUT)
         {
-            pkt_set_timestamp(pkt, (uint32_t) timeout.tv_usec);
+            pkt_set_timestamp(pkt, time);
             bytes_copied = PKT_MAX_LEN;
             pkt_encode(pkt, copybuf, &bytes_copied);
             if (write(sfd, copybuf, bytes_copied) == -1)
@@ -151,6 +157,7 @@ int resent_pkt(const int sfd, window_pkt_t *window)
                 return -1;
             }
             LOG_SENDER("Resent packet with seqnum %d", pkt_get_seqnum(pkt));
+            
             ++packet_retransmitted;
             ++nbr_resent;
         }
@@ -223,14 +230,35 @@ int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
 
 /*
  * Delete from window the acked packets
+ * @return -1 if the packet cannot ack the window, the number of acked packet otherwise
  */
 int ack_window(window_pkt_t *window, pkt_t* pkt)
 {
     uint8_t ackSeqnum = pkt_get_seqnum(pkt);
+
+    if (window->seqnumHead < window->seqnumTail)
+    {
+        if (ackSeqnum > window->seqnumTail + 1 || ackSeqnum < window->seqnumHead)
+        {
+            ++packet_ignored;
+            LOG_SENDER("Packet with seqnum %d ignored (not in window)", ackSeqnum);
+            return -1;
+        }
+    }
+    else
+    {
+        if (ackSeqnum < window->seqnumHead && ackSeqnum > window->seqnumTail + 1)
+        {
+            ++packet_ignored;
+            LOG_SENDER("Packet with seqnum %d ignored (not in window)", ackSeqnum);
+            return -1;
+        }
+    }
+    
     DEBUG("ack %d", ackSeqnum);
 
     linkedList_t* list = window->linkedList;
-    struct timeval timestamp;
+   
     node_t* current = list->head;
     node_t* previous = list->head;
     int no_acked = 0;
@@ -238,8 +266,8 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
     while (current != NULL && seqnum_in_window(window, ackSeqnum, pkt_get_seqnum(current->pkt)))
     {
 
-        gettimeofday(&timestamp, NULL);
-        uint32_t rtt = ( (uint32_t) timestamp.tv_usec - pkt_get_timestamp(current->pkt)) / 1000;
+        
+        uint32_t rtt = ( time_millis() - pkt_get_timestamp(current->pkt));
         LOG_SENDER("Removing from the list packet with seqnum %d", pkt_get_seqnum(current->pkt));
         
         if (rtt > max_rtt)
@@ -294,16 +322,15 @@ int resent_nack(const int sfd, window_pkt_t *window, int nack)
         return -1;
     }
 
-    struct timeval timeout;
-    gettimeofday(&timeout, NULL);
-    pkt_set_timestamp(current->pkt, (uint32_t) timeout.tv_usec);
+
+    pkt_set_timestamp(current->pkt, time_millis());
 
     error = pkt_encode(current->pkt, copybuf, &len);
     if (error != PKT_OK) {return -2;}
 
     error = write(sfd, copybuf, len);
     if (error == -1) {return -1;}
-    LOG_SENDER("Reesnt packet with seqnum %d (nack)", pkt_get_seqnum(current->pkt));
+    LOG_SENDER("Resent packet with seqnum %d (nack)", pkt_get_seqnum(current->pkt));
     ++packet_retransmitted;
     return 0;
 }
@@ -341,7 +368,7 @@ int update_window(window_pkt_t* window, uint8_t newSize){
     return 2;
 }
 
-void read_write_sender(const int sfd, const int fd, const char* stats_filename)
+void read_write_sender(const int sfd, const int fd, const int fd_stats)
 {
 
     copybuf = (char*) malloc(sizeof(char)*PKT_MAX_LEN);
@@ -442,6 +469,9 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
                 
             } else {
                 ++packet_ignored;
+                if (retval == E_CRC){
+                    LOG_SENDER("Packet ignored due to bad CRC");
+                }
             }
             
             pkt_del(pkt);
@@ -458,26 +488,20 @@ void read_write_sender(const int sfd, const int fd, const char* stats_filename)
     free(window);
     free(fds);
 
-    if (stats_filename != NULL){
-        FILE* f = fopen(stats_filename, "w");
-        if (f == NULL){
-            ERROR("Failed to open file %s : %s", stats_filename, strerror(errno));
-            return;
-        }
-        fprintf(f, "data_sent:%d\n", data_sent);
-        fprintf(f, "data_received:%d\n", data_received);
-        fprintf(f, "data_truncated_received:%d\n", data_truncated_received);
-        fprintf(f, "fec_sent:%d\n", fec_sent);
-        fprintf(f, "fec_received:%d\n", fec_received);
-        fprintf(f, "ack_sent:%d\n", ack_sent);
-        fprintf(f, "ack_received:%d\n", ack_received);
-        fprintf(f, "nack_sent:%d\n", nack_sent);
-        fprintf(f, "nack_received:%d\n", nack_received);
-        fprintf(f, "packet_ignored:%d\n", packet_ignored);
-        fprintf(f, "min_rtt:%d\n", min_rtt);
-        fprintf(f, "max_rtt:%d\n", max_rtt);
-        fprintf(f, "packet_retransmitted:%d\n", packet_retransmitted);
-        fclose(f);
-    }
+
+    dprintf(fd_stats, "data_sent:%d\n", data_sent);
+    dprintf(fd_stats, "data_received:%d\n", data_received);
+    dprintf(fd_stats, "data_truncated_received:%d\n", data_truncated_received);
+    dprintf(fd_stats, "fec_sent:%d\n", fec_sent);
+    dprintf(fd_stats, "fec_received:%d\n", fec_received);
+    dprintf(fd_stats, "ack_sent:%d\n", ack_sent);
+    dprintf(fd_stats, "ack_received:%d\n", ack_received);
+    dprintf(fd_stats, "nack_sent:%d\n", nack_sent);
+    dprintf(fd_stats, "nack_received:%d\n", nack_received);
+    dprintf(fd_stats, "packet_ignored:%d\n", packet_ignored);
+    dprintf(fd_stats, "min_rtt:%d\n", min_rtt);
+    dprintf(fd_stats, "max_rtt:%d\n", max_rtt);
+    dprintf(fd_stats, "packet_retransmitted:%d\n", packet_retransmitted);
+
     return;
 }

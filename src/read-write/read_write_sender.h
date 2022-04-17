@@ -31,6 +31,6 @@ int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
  *         stats_filename : the name of the file to write de stats
  * @return: as soon as stdin signals EOF
  */
-void read_write_sender(const int sfd, const int fd, const char* stats_filename);
+void read_write_sender(const int sfd, const int fd, const int fd_stats);
 
 #endif

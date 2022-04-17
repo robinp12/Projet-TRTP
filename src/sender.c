@@ -112,9 +112,27 @@ int main(int argc, char **argv)
         return errno;
     }
 
-    /* Process I/O */
-    read_write_sender(sfd, fd, stats_filename);
+    int fd_stats;
+    if (stats_filename != NULL)
+    {
+        fd_stats = open(filename, O_WRONLY);
+        if (fd_stats == -1)
+        {
+            ERROR("Unable to open stats file : %s", strerror(errno));
+            return errno;
+        }
+    } else
+    {
+        fd_stats = STDERR_FILENO;
+    }
 
+    /* Process I/O */
+    read_write_sender(sfd, fd, fd_stats);
+
+    if (fd_stats != STDERR_FILENO)
+    {
+        close(fd_stats);
+    }
     close(fd);
     close(sfd);
 

@@ -151,11 +151,15 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
         return E_UNCONSISTENT;
     }
     char *header = (char *) malloc(header_len);
-    memcpy(header, data, predict_header_length(pkt));
+    
+    memcpy(header, data, header_len);
     *header = *header & 0b1101111; // TR mis a 0
-    uint32_t crc1_new = crc32(0L, (const unsigned char *)header, predict_header_length(pkt));
+    uint32_t crc1_new = (uint32_t) crc32(0L, (const unsigned char *)header, header_len);
     // if (crc1_new != crc1){
     //     pkt_set_crc1(pkt, crc1_new);
+    //     DEBUG("Decoding %d", pkt_get_seqnum(pkt));
+    //     DEBUG_DUMP(header, header_len);
+    //     DEBUG_DUMP(data, header_len);
     //     free(header);
     //     return E_CRC;
     // }
@@ -195,13 +199,13 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
         return error;
     }
 
-    if (pkt->type == PTYPE_FEC && crc32(0L, (const unsigned char *)pkt->payload, MAX_PAYLOAD_SIZE) != crc2)
+    if (pkt->type == PTYPE_FEC && ((uint32_t) crc32(0L, (const unsigned char *)pkt->payload, MAX_PAYLOAD_SIZE)) != crc2)
     {
-        return PKT_OK; // E_CRC;
+        return E_CRC;
     }
-    else if (pkt->type == PTYPE_DATA && pkt->tr == 0 && crc32(0L, (const unsigned char *)pkt->payload, pkt->length) != crc2)
+    else if (pkt->type == PTYPE_DATA && pkt->tr == 0 && ((uint32_t) crc32(0L, (const unsigned char *)pkt->payload, pkt->length)) != crc2)
     {
-        return PKT_OK; // E_CRC;
+        return E_CRC;
     }
     return PKT_OK;
 }

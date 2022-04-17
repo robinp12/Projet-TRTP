@@ -78,6 +78,7 @@ int send_response(const int sfd, int type, uint8_t seqnum, window_pkt_t *window,
         return EXIT_FAILURE;
     }
 
+
     if (write(sfd, buffer, len) == -1)
     {
         ERROR("Failed to send packet : %s", strerror(errno));
@@ -223,7 +224,7 @@ void read_write_receiver(const int sfd, char *stats_filename)
 
     eof_reached_receiver = 0;
     fds[0].fd = sfd;
-    fds[0].events = POLLIN | POLLOUT;
+    fds[0].events = POLLIN;
 
     while (!eof_reached_receiver)
     {
@@ -236,6 +237,7 @@ void read_write_receiver(const int sfd, char *stats_filename)
 
         if ((fds[0].revents & POLLIN))
         {
+            DEBUG("Fill window");
             fill_packet_window(sfd, window);
         }
     }
