@@ -27,8 +27,6 @@ int main(int argc, char **argv)
     int opt;
     struct sockaddr_in6 listener_addr;
 
-    // FILE *fd;
-
     char *stats_filename = NULL;
     char *listen_ip = NULL;
     char *listen_port_err;
@@ -104,28 +102,8 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    char *buff = malloc(sizeof(char) * PKT_MAX_LEN);
-
-    /*DEBUG("Create first packet to initiate connexion");
-    pkt_t *first_packet = pkt_new();
-    pkt_set_type(first_packet, PTYPE_ACK);
-    pkt_set_seqnum(first_packet, 0);
-    pkt_set_window(first_packet, 1);
-    size_t len = PKT_MAX_LEN;
-
-    pkt_encode(first_packet, buff, &len);
-    if (write(sfd, buff, len) == -1)
-    {
-        ERROR("Failed to sent first packet : %s", strerror(errno));
-        return EXIT_FAILURE;
-    }
-    pkt_del(first_packet);
-    DEBUG("First packet sent");*/
-
     /* Process I/O */
     read_write_receiver(sfd, stats_filename);
-
-    free(buff);
 
     close(sfd);
 
