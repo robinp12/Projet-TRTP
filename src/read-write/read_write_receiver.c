@@ -96,7 +96,18 @@ int send_troncated_nack(const int sfd, pkt_t *pkt, window_pkt_t *window)
     data_received++;
     data_truncated_received++;
     packet_ignored++;
-    window->windowsize /= 2;
+
+    if (window->windowsize % 2)
+    {
+        if (window->windowsize < 1)
+        {
+            window->windowsize = 1;
+        }
+        else
+        {
+            window->windowsize /= 2;
+        }
+    }
 
     int ack_status = send_response(sfd, PTYPE_NACK, (pkt_get_seqnum(pkt)) % 255, window, pkt_get_timestamp(pkt));
     if (ack_status != PKT_OK)
@@ -114,7 +125,10 @@ int send_troncated_nack(const int sfd, pkt_t *pkt, window_pkt_t *window)
 int send_ack(const int sfd, pkt_t *pkt, window_pkt_t *window)
 {
 
-    window->windowsize++;
+    if (pkt_get_seqnum(pkt) <= lastSeqnum)
+    {
+        window->windowsize++;
+    }
 
     int ack_status = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));
     if (ack_status != PKT_OK)
