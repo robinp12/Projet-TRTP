@@ -1,4 +1,4 @@
-@@ Using random seed: 1650701723
+@@ Using random seed: 1650713041
 @@ Using parameters:
 .. port: 2000
 .. forward_port: 2456
@@ -7,118 +7,56 @@
 .. err_rate: 0
 .. cut_rate: 0
 .. loss_rate: 10
-.. seed: 1650701723
+.. seed: 1650713041
 .. link_direction: Both ways
-@@ Remote host is ::1 [38578]
+@@ Remote host is ::1 [46320]
 [SEQ   0] Delayed packet by 50 ms
 [SEQ   0] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Reverse).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Dropping packet
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Dropping packet
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Dropping packet
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Dropping packet
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Dropping packet
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Dropping packet
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Dropping packet
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Sent packet (Forward).
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
-[SEQ   1] Delayed packet by 50 ms
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Dropping packet
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Dropping packet
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Dropping packet
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).
+[SEQ   0] Dropping packet
+[SEQ   0] Delayed packet by 50 ms
+[SEQ   0] Sent packet (Forward).

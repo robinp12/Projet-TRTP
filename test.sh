@@ -3,17 +3,15 @@
 # cleanup d'un test précédent
 rm -f received_file input_file
 
-# Fichier au contenu aléatoire de 512 octets
-dd if=/dev/urandom of=input_file bs=1 count=512 &> /dev/null
 
 # On lance le simulateur de lien avec 10% de pertes et un délais de 50ms
 echo "link_sim démarré"
-./link_sim -p 2000 -P 2456 -l 10 -d 50 -R  &> link.log &
+./link_sim -p 2000 -P 2456 -l 10 -d 10 -R &
 link_pid=$!
 
 # On lance le receiver et capture sa sortie standard
 echo "receiver démarré"
-./receiver :: 2456  &
+./receiver :: 2456 1>received_file &
 receiver_pid=$!
 
 cleanup()
@@ -26,7 +24,9 @@ trap cleanup SIGINT  # Kill les process en arrière plan en cas de ^-C
 
 # On démarre le transfert
 echo "sender démarré"
-if ! ./sender ::1 2000 < input_file ; then
+input_file=test.txt
+
+if ! ./sender -f $input_file ::1 2000 ; then
   echo "Crash du sender!"
   cat sender.log
   err=1  # On enregistre l'erreur
@@ -49,13 +49,20 @@ fi
 # On arrête le simulateur de lien
 kill -9 $link_pid &> /dev/null
 
+sleep 1
+
+sha256sum $input_file
+sha256sum received_file
+
+exit 1
+
 # On vérifie que le transfert s'est bien déroulé
-if [[ "$(md5sum input_file | awk '{print $1}')" != "$(md5sum received_file | awk '{print $1}')" ]]; then
-  echo "Le transfert a corrompu le fichier!"
-  echo "Diff binaire des deux fichiers: (attendu vs produit)"
-  diff -C 9 <(od -Ax -t x1z input_file) <(od -Ax -t x1z received_file)
-  exit 1
-else
-  echo "Le transfert est réussi!"
-  exit ${err:-0}  # En cas d'erreurs avant, on renvoie le code d'erreur
-fi
+# if [[ "$(md5sum input_file | awk '{print $1}')" != "$(md5sum received_file | awk '{print $1}')" ]]; then
+#   echo "Le transfert a corrompu le fichier!"
+#   echo "Diff binaire des deux fichiers: (attendu vs produit)"
+#   diff -C 9 <(od -Ax -t x1z input_file) <(od -Ax -t x1z received_file)
+#   exit 1
+# else
+#   echo "Le transfert est réussi!"
+#   exit ${err:-0}  # En cas d'erreurs avant, on renvoie le code d'erreur
+# fi

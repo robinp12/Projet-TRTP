@@ -157,9 +157,6 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     uint32_t crc1_new = (uint32_t) crc32(0L, (const unsigned char *)header, header_len);
     if (crc1_new != crc1){
         pkt_set_crc1(pkt, crc1_new);
-        DEBUG("Header et data decode");
-        DEBUG_BYTE(header, header_len);
-        DEBUG_BYTE(data, header_len);
         free(header);
         return E_CRC;
     }
@@ -256,13 +253,12 @@ pkt_status_code pkt_encode(const pkt_t *pkt, char *buf, size_t *len)
     *len += 4;
 
     *buf = *buf & 0b11011111;
-    DEBUG("Encode buf");
-    DEBUG_BYTE(buf, 6);
+
     uint32_t crc1 = crc32(0L, (const unsigned char *)buf, predict_header_length(pkt));
     // pkt_set_crc1(pkt, crc1);
     crc1 = htonl(crc1);
     memcpy(buf + (*len), &crc1, 4);
-    DEBUG("CRC1 %d for %d", crc1, seqnum);
+
     *len += 4;
     *buf += pkt_get_tr(pkt) << 5;
 
