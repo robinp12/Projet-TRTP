@@ -14,7 +14,7 @@
 #include "../log.h"
 #include "../fec.h"
 
-#define TIMEOUT 300        // timeout to resent pkt
+#define TIMEOUT 2000        // timeout to resent pkt
 #define MAX_RESENT_LAST_PKT 4  // number of time we have to resent the last packet before ending the transmission
 
 static char *copybuf;
@@ -94,7 +94,7 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
     while ((list->size < window->windowsize) && (eof_reached == 0))
     {
 
-        bytes_read = pread(fd, copybuf, MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE * window->pktnum);
+        bytes_read = read(fd, copybuf, MAX_PAYLOAD_SIZE);
         if (bytes_read != MAX_PAYLOAD_SIZE)
         {
             DEBUG("EOF");
@@ -449,11 +449,17 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats)
             if (!eof_reached && window->linkedList->size < window->windowsize){
                 retval = fill_window(fd, sfd, window);
             }
-            if (eof_reached && window->linkedList->size < window->windowsize){
+            if (!lastPkt && eof_reached && window->linkedList->size < window->windowsize){
+                lastPkt = 1;
                 retval = send_final_pkt(sfd, window);
             }
 
             retval = resent_pkt(sfd, window);
+
+            if (lastPkt && lastRst > MAX_RESENT_LAST_PKT){
+                LOG_SENDER("No news from receiver, last packet has been resent %d times, assuming end of transmission", MAX_RESENT_LAST_PKT);
+                break;
+            }
             
         }
 
@@ -476,12 +482,12 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats)
                 else if (pkt_get_type(pkt) == PTYPE_ACK)
                 {
                     ++ack_received;
-                    DEBUG("Received ack with seqnum %d", pkt_get_seqnum(pkt));
+                    LOG_SENDER("Received ack with seqnum %d", pkt_get_seqnum(pkt));
                     retval = ack_window(window, pkt);
 
-                    if (lastPkt && (window->linkedList->size == 0 || lastRst >= MAX_RESENT_LAST_PKT))
+                    if (lastPkt && window->linkedList->size == 0)
                     {
-                        // All the packet are acked
+                        LOG_SENDER("All packets ack, end of transmission");
                         pkt_del(pkt);
                         break;
                     }

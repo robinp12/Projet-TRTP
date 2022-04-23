@@ -33,6 +33,10 @@
     do {\
         fprintf(stderr, "[SENDER] " msg "\n", ##__VA_ARGS__);\
     } while (0)
+#define LOG_RECEIVER(msg, ...)\
+    do {\
+        fprintf(stderr, "[RECEIVER] " msg "\n", ##__VA_ARGS__);\
+    } while (0)
     
 
 #ifdef _DEBUG
