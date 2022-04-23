@@ -44,11 +44,16 @@ typedef struct window_pkt
     linkedList_t *linkedList;
 } window_pkt_t;
 
+/* Augmenter la taille de la fenetre d'envoi */
 void increase_window(window_pkt_t *window)
 {
-    window->windowsize++;
+    if (window->windowsize < 31)
+    {
+        window->windowsize++;
+    }
 }
 
+/* Diminuer la taille de la fenetre d'envoi */
 void decrease_window(window_pkt_t *window)
 {
     if (window->windowsize > 2)
@@ -105,19 +110,18 @@ int send_response(const int sfd, int type, uint8_t seqnum, window_pkt_t *window,
 /* Envoyer un paquet de type NACK */
 int send_troncated_nack(const int sfd, pkt_t *pkt, window_pkt_t *window)
 {
-
     data_received++;
     data_truncated_received++;
     packet_ignored++;
     decrease_window(window);
 
-    int ack_status = send_response(sfd, PTYPE_NACK, (pkt_get_seqnum(pkt)) % 255, window, pkt_get_timestamp(pkt));
+    int ack_status = send_response(sfd, PTYPE_NACK, (pkt_get_seqnum(pkt)) % 256, window, pkt_get_timestamp(pkt));
     if (ack_status != PKT_OK)
     {
         ERROR("Sending nack failed : %d", ack_status);
         return EXIT_FAILURE;
     }
-    DEBUG("send_nack : %d", lastSeqnum);
+    DEBUG("send_nack : %d", (pkt_get_seqnum(pkt)) % 256);
 
     nack_sent++;
     return EXIT_SUCCESS;
@@ -131,13 +135,13 @@ int send_ack(const int sfd, pkt_t *pkt, window_pkt_t *window)
         increase_window(window);
     }
 
-    int ack_status = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 255, window, pkt_get_timestamp(pkt));
+    int ack_status = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 256, window, pkt_get_timestamp(pkt));
     if (ack_status != PKT_OK)
     {
         ERROR("Sending ack failed : %d", ack_status);
         return EXIT_FAILURE;
     }
-    DEBUG("send_ack : %d", lastSeqnum);
+    DEBUG("send_ack : %d", lastSeqnum % 256);
 
     ack_sent++;
     num_ack = 0;
@@ -147,7 +151,6 @@ int send_ack(const int sfd, pkt_t *pkt, window_pkt_t *window)
 /* Ecrire les données recues dans le systeme de fichier */
 int write_payload(pkt_t *pkt)
 {
-
     int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
     if (wr == -1)
     {
@@ -195,39 +198,40 @@ int receive_pkt(const int sfd, window_pkt_t *window)
             if (pkt_get_tr(pkt) == 0)
             { /* Paquet non tronqué (OK) */
                 while (list->size > 0 && lastSeqnum == pkt_get_seqnum(list->head->pkt))
-                { /* Prend le paquet s'il est dans le linkedlist */
+                { /* Ecrit sur le stdout si les pkt correspondant sont dans la linkedlist */
                     write_payload(list->head->pkt);
                     linkedList_remove(list);
                 }
                 if (pkt_get_seqnum(pkt) > lastSeqnum)
-                { /* Push dans le linkedlist */
+                { /* Push dans la linkedlist si le seqnum plus grand */
                     if (list->size == 0 ||
                         (list->size > 0 &&
                          (pkt_get_seqnum(pkt) > pkt_get_seqnum(list->tail->pkt))))
                     {
                         linkedList_add_pkt(list, pkt);
                     }
+
+                    /* Diminue la window si pas en sequence */
+                    decrease_window(window);
                 }
                 else if (lastSeqnum == pkt_get_seqnum(pkt))
                 { /* Prend le paquet recu */
                     write_payload(pkt);
                 }
 
-                if (num_ack >= window->windowsize ||    /* Ack apres la reception de la window */
-                    pkt_get_seqnum(pkt) == 0 ||         /* Envoyer premier ack sinon sender envoi pas le suivant */
-                    pkt_get_length(pkt) == 0 ||         /* Ack du dernier paquet */
-                    lastSeqnum < pkt_get_seqnum(pkt) || /* Ack si nouveau seqnum recu plus grand */
-                    lastSeqnum > pkt_get_seqnum(pkt))   /* Ack si nouveau seqnum recu plus petit */
-                {                                       /* Ack avec le prochain seqnum attendu */
+                if (num_ack >= window->windowsize ||  /* Ack apres la reception de la window */
+                    pkt_get_seqnum(pkt) == 0 ||       /* Envoyer premier ack sinon sender envoi pas le suivant */
+                    pkt_get_length(pkt) == 0 ||       /* Ack du dernier paquet */
+                    lastSeqnum < pkt_get_seqnum(pkt)) /* Ack si nouveau seqnum recu plus grand */
+                {                                     /* Ack avec le prochain seqnum attendu */
                     send_ack(sfd, pkt, window);
-                    if (lastSeqnum < pkt_get_seqnum(pkt) || lastSeqnum > pkt_get_seqnum(pkt))
-                    {
-                        decrease_window(window);
-                    }
+                }
+                else if (lastSeqnum > pkt_get_seqnum(pkt))
+                { /* Nack si nouveau seqnum recu plus petit */
+                    send_troncated_nack(sfd, pkt, window);
                 }
 
-                // DEBUG("length : %d",pkt_get_length(pkt));
-                if (pkt_get_length(pkt) == 0 && lastSeqnum > pkt_get_seqnum(pkt))
+                if (pkt_get_length(pkt) == 0 && lastSeqnum >= pkt_get_seqnum(pkt))
                 { /* Reception du dernier paquet */
                     DEBUG("EOF");
                     eof_reached_receiver = 1;
