@@ -48,6 +48,7 @@
 /* Prints `len` bytes starting from `bytes` to stderr */
 void dump(const uint8_t *bytes, size_t len);
 
+void dump_bits(const uint8_t *bytes, size_t len);
 /* Use this useful macro instead of the bare function*/
 #ifdef _DEBUG
 #define DEBUG_DUMP(bytes, len) \
@@ -55,8 +56,15 @@ void dump(const uint8_t *bytes, size_t len);
         DEBUG("Dumping %ld bytes from pointer %p at %s:%d", (size_t) len, bytes, __FILE__, __LINE__); \
         dump((const uint8_t *) bytes, (size_t) len); \
     } while (0)
+
+    #define DEBUG_BYTE(bytes, len) \
+    do {                       \
+        DEBUG("Dumping %ld bytes from pointer %p at %s:%d", (size_t) len, bytes, __FILE__, __LINE__); \
+        dump_bits((const uint8_t *) bytes, (size_t) len); \
+    } while (0)
 #else
 #define DEBUG_DUMP(bytes, len)
+#define DEBUG_BYTE(bytes, len)
 #endif
 
 #endif // __LOG_H_
