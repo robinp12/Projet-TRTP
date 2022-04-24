@@ -128,20 +128,20 @@ int send_troncated_nack(const int sfd, pkt_t *pkt, window_pkt_t *window)
 }
 
 /* Envoyer un paquet de type ACK */
-int send_ack(const int sfd, pkt_t *pkt, window_pkt_t *window)
+int send_ack(const int sfd, pkt_t *pkt, window_pkt_t *window, uint8_t seqnum)
 {
-    if (pkt_get_seqnum(pkt) <= lastSeqnum)
+    if (pkt_get_seqnum(pkt) <= seqnum)
     {
         increase_window(window);
     }
 
-    int ack_status = send_response(sfd, PTYPE_ACK, (lastSeqnum) % 256, window, pkt_get_timestamp(pkt));
+    int ack_status = send_response(sfd, PTYPE_ACK, (seqnum) % 256, window, pkt_get_timestamp(pkt));
     if (ack_status != PKT_OK)
     {
         ERROR("Sending ack failed : %d", ack_status);
         return EXIT_FAILURE;
     }
-    DEBUG("send_ack : %d", lastSeqnum % 256);
+    DEBUG("send_ack : %d", seqnum % 256);
 
     ack_sent++;
     num_ack = 0;
@@ -224,11 +224,11 @@ int receive_pkt(const int sfd, window_pkt_t *window)
                     pkt_get_length(pkt) == 0 ||       /* Ack du dernier paquet */
                     lastSeqnum < pkt_get_seqnum(pkt)) /* Ack si nouveau seqnum recu plus grand */
                 {                                     /* Ack avec le prochain seqnum attendu */
-                    send_ack(sfd, pkt, window);
+                    send_ack(sfd, pkt, window, lastSeqnum);
                 }
                 else if (lastSeqnum > pkt_get_seqnum(pkt))
-                { /* Nack si nouveau seqnum recu plus petit */
-                    send_troncated_nack(sfd, pkt, window);
+                { /* Ack si nouveau seqnum recu plus petit */
+                    send_ack(sfd, pkt, window, pkt_get_seqnum(pkt));
                 }
 
                 if (pkt_get_length(pkt) == 0 && lastSeqnum >= pkt_get_seqnum(pkt))
