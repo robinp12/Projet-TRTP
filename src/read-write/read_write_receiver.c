@@ -235,6 +235,7 @@ int receive_pkt(const int sfd, window_pkt_t *window)
                 { /* Reception du dernier paquet */
                     DEBUG("EOF");
                     eof_reached_receiver = 1;
+                    pkt_del(pkt);
                     return EXIT_SUCCESS;
                 }
             }
@@ -245,6 +246,7 @@ int receive_pkt(const int sfd, window_pkt_t *window)
         }
         window->pktnum++;
     }
+    pkt_del(pkt);
     return window->pktnum;
 }
 
@@ -316,6 +318,7 @@ void read_write_receiver(const int sfd, char *stats_filename)
     }
 
     DEBUG("Frees");
+    free(fds);
     free(buffer);
     linkedList_del(window->linkedList);
     free(window);
