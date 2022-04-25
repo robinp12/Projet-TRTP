@@ -142,17 +142,21 @@ int send_troncated_nack(const int sfd, pkt_t *pkt, window_pkt_t *window)
 }
 
 /* Envoyer un paquet de type ACK */
+
 int send_ack(const int sfd, uint32_t timestamp, window_pkt_t *window)
 {
     increase_window(window);
 
     int ack_status = send_response(sfd, PTYPE_ACK, window->seqnumHead, window, timestamp);
+
     if (ack_status != PKT_OK)
     {
         ERROR("Sending ack failed : %d", ack_status);
         return EXIT_FAILURE;
     }
+
     LOG_RECEIVER("[%3d] Send ack", window->seqnumHead);
+
     ack_sent++;
     num_ack = 0;
     return EXIT_SUCCESS;
@@ -346,6 +350,7 @@ int receive_data(const int sfd, window_pkt_t* window)
     }
     
 
+
     switch (pkt_get_type(pkt))
     {
     case PTYPE_DATA:
@@ -379,6 +384,7 @@ int receive_data(const int sfd, window_pkt_t* window)
                 {
                     resent_ack = 1;
                     return 0;
+
                 }
             }
             else
@@ -402,7 +408,9 @@ int receive_data(const int sfd, window_pkt_t* window)
         pkt_del(pkt);
         break;
     }
+
     return 0;
+
 }
 
 /*
@@ -543,6 +551,7 @@ void read_write_receiver(const int sfd, const int fd_stats)
     dprintf(fd_stats, "packet_ignored:%d\n", packet_ignored);
     dprintf(fd_stats, "packet_duplicated:%d\n", packet_duplicated);
     dprintf(fd_stats, "packet_recovered:%d", packet_recovered);
+
 
 
     free(buffer);
