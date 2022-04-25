@@ -339,6 +339,7 @@ int receive_data(const int sfd, window_pkt_t* window)
         }
         LOG_RECEIVER("Packet ignored due to bad CRC");
         packet_ignored++;
+        pkt_del(pkt);
         return -1;
     }
     
@@ -346,6 +347,7 @@ int receive_data(const int sfd, window_pkt_t* window)
     {
         LOG_RECEIVER("Packet ignored (pkt error number %d)", retval);
         packet_ignored++;
+        pkt_del(pkt);
         return -1;
     }
     
@@ -555,6 +557,7 @@ void read_write_receiver(const int sfd, const int fd_stats)
 
 
     free(buffer);
+    free(fds);
     linkedList_del(window->linkedList);
     free(window);
 }
