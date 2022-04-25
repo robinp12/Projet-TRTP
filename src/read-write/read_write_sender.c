@@ -418,11 +418,10 @@ int update_window(window_pkt_t* window, uint8_t newSize){
     
     window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
 
-    if (lastPkt)
-    {
-        lastPkt = 0;
-        lastRst = 0;
-    }
+    lastPkt = 0;
+    lastRst = 0;
+    eof_reached = 0;
+
     print_window(window);
     LOG_SENDER("Window decreased to %d", newSize);
     return 2;
