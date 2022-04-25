@@ -81,5 +81,3 @@ else
   echo "extension ,size ,time_sender ,loss ,delay ,jitter ,error ,cut ,pkt_corrupted," >> time_to_sender.csv
   echo "$extension ,$mysize, $time_sender ,$loss ,$delay ,$jitter ,$error ,$cut, $corrompu," >> time_to_sender.csv
 fi
-
-exit 1
