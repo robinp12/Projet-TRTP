@@ -442,7 +442,11 @@ int flush_file(window_pkt_t* window)
             window->seqnumHead = (window->seqnumHead + 1) % 256;
             return -1;
         }
-        write(STDOUT_FILENO, pkt_get_payload(current->pkt), pkt_get_length(current->pkt));
+        int wr = write(STDOUT_FILENO, pkt_get_payload(current->pkt), pkt_get_length(current->pkt));
+        if (wr == -1)
+        {
+            return -1;
+        }
         ++packet_write;
         LOG_RECEIVER("Wrote packet %d to stdout", pkt_get_seqnum(current->pkt));
 

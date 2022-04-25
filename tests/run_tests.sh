@@ -1,6 +1,6 @@
 # Note that this assumes to be called from the Makefile, you may want to adapt it.
-@echo "A very simple test"
-./tests/simple_test.sh
+echo "Test with simlink"
+./tests/test.sh 5 5 5 5 5
 # Run the same test, but this time with valgrind
-@echo "A very simple test, with Valgrind"
-VALGRIND=1 ./tests/simple_test.sh
+echo "A very simple test, with Valgrind"
+VALGRIND=1 ./tests/test.sh 10 10 10 10 10
