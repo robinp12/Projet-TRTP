@@ -85,7 +85,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
         return error;
     }
 
-    uint8_t tr = (*data & 0b00100000) >> 7;
+    uint8_t tr = (*data & 0b00100000) >> 5;
     error = pkt_set_tr(pkt, tr);
     if (error != PKT_OK)
     {
@@ -163,7 +163,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     pkt_set_crc1(pkt, crc1_new);
     free(header);
 
-    if (pkt->type == PTYPE_ACK || pkt->type == PTYPE_NACK)
+    if (pkt->type == PTYPE_ACK || pkt->type == PTYPE_NACK || (pkt->type == PTYPE_DATA && pkt->length == 0))
     {
         return PKT_OK;
     }
@@ -433,7 +433,7 @@ pkt_status_code pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t len
     if (pkt->type == PTYPE_DATA)
     {
         if (length == 0){
-            return E_LENGTH;
+            return PKT_OK;
         }
         pkt->payload = (char *)malloc(sizeof(char)*length);
         if (pkt->payload == NULL)

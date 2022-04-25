@@ -8,6 +8,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "log.h"
 #include "packet_implem.h"
@@ -102,10 +105,25 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    int fd_stats;
+    if (stats_filename != NULL)
+    {
+        fd_stats = open(stats_filename, O_WRONLY);
+        if (fd_stats == -1)
+        {
+            ERROR("Unable to open stats file : %s", strerror(errno));
+            return errno;
+        }
+    } else
+    {
+        fd_stats = STDERR_FILENO;
+    }
+
     /* Process I/O */
-    read_write_receiver(sfd, stats_filename);
+    read_write_receiver(sfd, fd_stats);
 
     close(sfd);
+    close(fd_stats);
 
     return EXIT_SUCCESS;
 }

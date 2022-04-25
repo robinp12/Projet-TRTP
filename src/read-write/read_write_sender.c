@@ -14,20 +14,22 @@
 #include "../log.h"
 #include "../fec.h"
 
-#define TIMEOUT 2000        // timeout to resent pkt
+#define TIMEOUT 1000        // timeout to resent pkt
 #define MAX_RESENT_LAST_PKT 4  // number of time we have to resent the last packet before ending the transmission
 
 static char *copybuf;
-static int eof_reached = 0; // flag for the end of file
-static int lastPkt = 0;     // flag to send the last packet (end of file and all packets are send)
-static int lastRst = 0;     // number of time the last packet has been resent
+static int eof_reached = 0;    // flag for the end of file
+static int lastPkt = 0;        // flag to send the last packet (end of file and all packets are send)
+static int lastRst = 0;        // number of time the last packet has been resent
+
+static uint64_t global_pkt = 0;  // number of char[MAX_PAYLOAD_SIZE] read to the source file
 static fec_pkt_t* fec;
 
 
 /* Stats variables */
 static int data_sent = 0;             // number of PTYPE_DATA packet sent
 static int data_received = 0;         // number of valid PTYPE_DATA packets received
-static int data_truncated_received;   // number of valied PTYPE_DATA packets with TR field to 1 received
+static int data_truncated_received;   // number of valid PTYPE_DATA packets with TR field to 1 received
 static int fec_sent = 0;              // number of PTYPE_FEC packets sent
 static int fec_received = 0;          // number of valid PTYPE_FEC packets received
 static int ack_sent = 0;              // number of PTYPE_ACK packets sent
@@ -54,12 +56,13 @@ uint32_t time_millis(void){
 */
 int send_final_pkt(const int sfd, window_pkt_t* window)
 {
+    window->seqnumTail = (window->seqnumTail + 1) % 256;
     pkt_t* pkt = pkt_new();
     pkt_set_type(pkt, PTYPE_DATA);
     pkt_set_tr(pkt, 0);
     pkt_set_length(pkt, 0);
     pkt_set_window(pkt, window->windowsize);
-    pkt_set_seqnum(pkt, window->seqnumNext);
+    pkt_set_seqnum(pkt, window->seqnumTail);
     
     pkt_set_timestamp(pkt, time_millis());
     
@@ -74,18 +77,18 @@ int send_final_pkt(const int sfd, window_pkt_t* window)
     }
     ++data_sent;
     linkedList_add_pkt(window->linkedList, pkt);
-    window->seqnumTail = window->seqnumNext;
+
     lastPkt = 1;
-    LOG_SENDER("Final packet sent with seqnum %d", window->seqnumNext);
+    LOG_SENDER("Final packet sent with seqnum %d", window->seqnumTail);
     return 0;
 }
 
 /*
  * Fill the window with packet and sent them
  */
-int fill_window(const int fd, const int sfd, window_pkt_t *window)
+int fill_window(const int fd, const int sfd, window_pkt_t *window, const int fec_enable)
 {
-    size_t bytes_read;
+    ssize_t bytes_read;
 
     int n_filled = 0;
     
@@ -93,18 +96,19 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
     
     while ((list->size < window->windowsize) && (eof_reached == 0))
     {
+        const uint8_t sendingSeqnum = global_pkt % 256;
 
-        bytes_read = read(fd, copybuf, MAX_PAYLOAD_SIZE);
-        if (bytes_read != MAX_PAYLOAD_SIZE)
+        bytes_read = pread(fd, copybuf, MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE*global_pkt);
+        if (bytes_read == 0)
         {
-            DEBUG("EOF");
+            LOG_SENDER("[%3d] End of file in read", sendingSeqnum);
             eof_reached = 1;
+            return n_filled;
         }
-        ++window->pktnum;
 
         pkt_t *pkt = pkt_new();
         pkt_set_type(pkt, PTYPE_DATA);
-        pkt_set_seqnum(pkt, window->seqnumNext);
+        pkt_set_seqnum(pkt, sendingSeqnum);
         pkt_set_window(pkt, window->windowsize);
         pkt_set_tr(pkt, 0);
         pkt_set_payload(pkt, copybuf, bytes_read);
@@ -112,44 +116,45 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window)
         pkt_set_timestamp(pkt, time_millis());
 
         linkedList_add_pkt(list, pkt);
-        LOG_SENDER("Adding packet %d to the list", window->seqnumNext);
 
-        bytes_read = PKT_MAX_LEN;
-        pkt_encode(pkt, copybuf, &bytes_read);
+        size_t len = PKT_MAX_LEN;
+        pkt_encode(pkt, copybuf, &len);
 
-        if (write(sfd, copybuf, bytes_read) == -1)
+        if (write(sfd, copybuf, len) == -1)
         {
-            ERROR("Failed to send packet : %s", strerror(errno));
+            ERROR("[%3d] Failed to send packet (but added to the list): %s", sendingSeqnum, strerror(errno));
             return -1;
         }
 
-        LOG_SENDER("Packet sent with seqnum %d", window->seqnumNext);
+        LOG_SENDER("[%3d] Packet sent and add to the list", sendingSeqnum);
+        if (fec_enable)
+        {
+            fec->pkts[fec->i] = pkt;
+            ++fec->i;
+            if (fec->i == 4)
+            {
+                pkt_t* fec_pkt = fec_generation(fec->pkts[0], fec->pkts[1], fec->pkts[2], fec->pkts[3]);
 
-        fec->pkts[fec->i] = pkt;
-        ++fec->i;
-        if (fec->i == 4){
-            pkt_t* fec_pkt = fec_generation(fec->pkts[0], fec->pkts[1], fec->pkts[2], fec->pkts[3]);
+                size_t len = PKT_MAX_LEN;
+                pkt_encode(fec_pkt, copybuf, &len);
 
-            size_t len = PKT_MAX_LEN;
-            pkt_encode(fec_pkt, copybuf, &len);
-
-            if (write(sfd, copybuf, len) == -1){
-                ERROR("Failed to send fec : %s", strerror(errno));
-                return -1;
+                if (write(sfd, copybuf, len) == -1){
+                    ERROR("Failed to send fec : %s", strerror(errno));
+                    return -1;
+                }
+                LOG_SENDER("Send fec with seqnum %d", pkt_get_seqnum(fec->pkts[0]));
+                pkt_del(fec_pkt);
+                ++fec_sent;
+                fec->i = 0;
             }
-            LOG_SENDER("Send fec with seqnum %d", pkt_get_seqnum(fec->pkts[0]));
-            pkt_del(fec_pkt);
-            ++fec_sent;
-            fec->i = 0;
         }
 
-        window->seqnumTail = window->seqnumNext;
-        window->seqnumNext = (window->seqnumNext + 1) % 256;
-
+        window->seqnumTail = sendingSeqnum;
+        ++global_pkt;
+        
         ++data_sent;
         ++n_filled;
     }
-    window->seqnumHead = pkt_get_seqnum(list->head->pkt);
     return n_filled;
 }
 
@@ -167,7 +172,6 @@ int resent_pkt(const int sfd, window_pkt_t *window)
     {
         pkt_t *pkt = current->pkt;
         uint32_t time = time_millis();
-        //DEBUG("%d > %d ? %d", ((uint32_t) timeout.tv_nsec - pkt_get_timestamp(pkt))/1000, (uint32_t) TIMEOUT/1000, (((uint32_t) timeout.tv_nsec - pkt_get_timestamp(pkt)) > TIMEOUT));
 
         if (pkt != NULL && (time - pkt_get_timestamp(pkt)) > TIMEOUT)
         {
@@ -176,10 +180,10 @@ int resent_pkt(const int sfd, window_pkt_t *window)
             pkt_encode(pkt, copybuf, &bytes_copied);
             if (write(sfd, copybuf, bytes_copied) == -1)
             {
-                ERROR("Failed to resent pkt : %s", strerror(errno));
+                ERROR("[%3d] Failed to resent pkt : %s", pkt_get_seqnum(pkt), strerror(errno));
                 return -1;
             }
-            LOG_SENDER("Resent packet with seqnum %d", pkt_get_seqnum(pkt));
+            LOG_SENDER("[%3d] Resent packet", pkt_get_seqnum(pkt));
 
             if (pkt_get_length(pkt) == 0){
                 ++lastRst;
@@ -202,20 +206,20 @@ void print_window(window_pkt_t* window){
     linkedList_t* list = window->linkedList;
     node_t* current = window->linkedList->head;
     if (list->size == 0){
-        printf("[empty list]\n");
+        fprintf(stderr, "[empty list]\n");
         return;
     }
     
-    printf("Head %d, tail %d, size %d    | ", window->seqnumHead, window->seqnumTail, list->size);
+    fprintf(stderr, "Head %d, tail %d, size (list) %d, size (window) %d   | ", window->seqnumHead, window->seqnumTail, list->size, window->windowsize);
 
     while (1)
     {
-        printf(" %d ", pkt_get_seqnum(current->pkt));
+        fprintf(stderr, " %d ", pkt_get_seqnum(current->pkt));
         if (current == list->tail)
             break;
         current = current->next;
     }
-    printf("\n");
+    fprintf(stderr, "\n");
 }
 
 /*
@@ -224,9 +228,15 @@ void print_window(window_pkt_t* window){
 */
 int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
 {
+    const uint8_t head = window->seqnumHead;
+    const uint8_t tail = window->seqnumTail;
+
+    if ((tail + 1) % 256 == ackSeqnum)
+        return 1;
+
     /* the window is not cut by the border [-----xxxxxx--] */
     /*                                     [-----HxxxxT--] */
-    if (window->seqnumTail >= window->seqnumHead){
+    if (tail >= head){
         if (pktSeqnum < ackSeqnum)
             return 1;
         else
@@ -234,20 +244,20 @@ int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
     }
     /* the window is cut by the border [xx------xxxxx] */
     else {
-        if (ackSeqnum > window->seqnumHead){    /* [xx------xxxAx] */
-            if (pktSeqnum < ackSeqnum && pktSeqnum > window->seqnumTail) /* [xx------xPxAx] */
+        if (ackSeqnum > head){    /* [xx------xxxAx] */
+            if (pktSeqnum < ackSeqnum && pktSeqnum > tail) /* [xx------xPxAx] */
                 return 1;
             else
                 return 0;
         }
-        if (ackSeqnum <= window->seqnumTail + 1){     /* [xxAx------xx] */
-            if (pktSeqnum <= window->seqnumTail){ /* [??A?------xx] */
+        if (ackSeqnum <= tail + 1){     /* [xxAx------xx] */
+            if (pktSeqnum <= tail){ /* [??A?------xx] */
                 if (pktSeqnum < ackSeqnum)       /* [xPAx------xx] */
                     return 1;
                 else                             /* [xxAP------xx] */
                     return 0;
             }
-            if (pktSeqnum >= window->seqnumHead)  /* [xA------xPxx] */
+            if (pktSeqnum >= head)  /* [xA------xPxx] */
                 return 1;
         }
     }
@@ -260,40 +270,42 @@ int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
  */
 int ack_window(window_pkt_t *window, pkt_t* pkt)
 {
-    uint8_t ackSeqnum = pkt_get_seqnum(pkt);
+    const uint8_t ackSeqnum = pkt_get_seqnum(pkt);
+    // const uint8_t head = window->seqnumHead;
+    // const uint8_t tail = window->seqnumTail;
 
-    if (window->seqnumHead < window->seqnumTail)
-    {
-        if (ackSeqnum > window->seqnumTail + 1 || ackSeqnum < window->seqnumHead)
-        {
-            ++packet_ignored;
-            LOG_SENDER("Packet with seqnum %d ignored (not in window)", ackSeqnum);
-            return -1;
-        }
-    }
-    else
-    {
-        if (ackSeqnum < window->seqnumHead && ackSeqnum > window->seqnumTail + 1)
-        {
-            ++packet_ignored;
-            LOG_SENDER("Packet with seqnum %d ignored (not in window)", ackSeqnum);
-            return -1;
-        }
-    }
+    if (!can_ack_window(window, ackSeqnum))
+        return -1;
+    // if (head < tail)
+    // {
+    //     if (ackSeqnum > tail + 1 || ackSeqnum < head)
+    //     {
+    //         if (!(ackSeqnum == 0 && tail == 255))
+    //         {
+    //         return -1;
+    //         }
+    //     }
+    // }
+    // else
+    // {
+    //     if (ackSeqnum < head && ackSeqnum > tail + 1)
+    //     {
+    //         return -1;
+    //     }
+    // }
 
     linkedList_t* list = window->linkedList;
    
     node_t* current = list->head;
-    node_t* previous = list->head;
+    //node_t* previous = list->head;
     int no_acked = 0;
     uint32_t time = time_millis();
 
     while (current != NULL && seqnum_in_window(window, ackSeqnum, pkt_get_seqnum(current->pkt)))
     {
-
         
         uint32_t rtt = (time - pkt_get_timestamp(current->pkt));
-        LOG_SENDER("Removing from the list packet with seqnum %d", pkt_get_seqnum(current->pkt));
+        LOG_SENDER("[%3d] Packet remove from the list (acked)", pkt_get_seqnum(current->pkt));
 
         fec->i = 0;
         
@@ -302,26 +314,28 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
         else if (rtt < min_rtt)
             min_rtt = rtt;
 
-        if (current == list->head) {
-            linkedList_remove(list);
 
-            current = list->head;
-            previous = list->head;
+        linkedList_remove(list);
 
-            if (list->size > 0)
-                window->seqnumHead = pkt_get_seqnum(current->pkt);
-        }
-        else if (current == list->tail) {
-            linkedList_remove_end(list);
+        current = list->head;
+        //previous = list->head;
+
+        if (list->size > 0)
+            window->seqnumHead = pkt_get_seqnum(current->pkt);
+
+        // else if (current == list->tail) {
+        //     ERROR("HERE");
+        //     linkedList_remove_end(list);
             
-            if (list->size > 0)
-                window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
-            return no_acked++;
-        }
-        else {
-            linkedList_remove_middle(list, previous, current);
-            current = previous->next;
-        }
+        //     if (list->size > 0)
+        //         window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
+        //     return no_acked++;
+        // }
+        // else {
+        //     linkedList_remove_middle(list, previous, current);
+        //     ERROR("ICI");
+        //     current = previous->next;
+        // }
 
         no_acked++;
         if (list->size == 0){
@@ -334,18 +348,24 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
 /*
  * Resent the truncated packet
  */
-int resent_nack(const int sfd, window_pkt_t *window, int nack)
+int resent_nack(const int sfd, window_pkt_t *window, uint8_t nack)
 {
     size_t len = PKT_MAX_LEN;
     int error;
     node_t* current = window->linkedList->head;
+
+    if (!is_in_sender_window(window, nack))
+    {
+        LOG_SENDER("[%3d] Failed to find packet on the list (nack)", nack);
+        return -1;
+    }
 
     while (current != NULL && pkt_get_seqnum(current->pkt) != nack)
     {
         current = current->next;
     }
     if (current == NULL){
-        LOG_SENDER("Failed to find packet with seqnum %d", nack);
+        LOG_SENDER("[%3d] Failed to find packet on the list (nack)", nack);
         return -1;
     }
 
@@ -357,7 +377,7 @@ int resent_nack(const int sfd, window_pkt_t *window, int nack)
 
     error = write(sfd, copybuf, len);
     if (error == -1) {return -1;}
-    LOG_SENDER("Resent packet with seqnum %d (nack)", pkt_get_seqnum(current->pkt));
+    LOG_SENDER("[%3d] Packet resent (nack)", nack);
     ++packet_retransmitted;
     return 0;
 }
@@ -386,26 +406,98 @@ int update_window(window_pkt_t* window, uint8_t newSize){
     }
 
     linkedList_t* list = window->linkedList;
+    window->windowsize = newSize;
     while (list->size > window->windowsize)
     {
         if (linkedList_remove_end(list) != 0){
             ERROR("linkedList_remove_end failed");
             return -1;
         }
+        --global_pkt;
     }
     
     window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
-    window->windowsize = newSize;
+
+    if (lastPkt)
+    {
+        lastPkt = 0;
+        lastRst = 0;
+    }
+    print_window(window);
     LOG_SENDER("Window decreased to %d", newSize);
     return 2;
 }
 
-void read_write_sender(const int sfd, const int fd, const int fd_stats)
+
+/*
+* Check if the packet is in the window
+* @returns 1 if yes, 0 if no
+*/
+int is_in_sender_window(window_pkt_t* window, uint8_t seqnum)
+{
+    const uint8_t head = window->seqnumHead;
+    const uint8_t tail = window->seqnumTail;
+
+    if (head < tail)
+    {
+        if (seqnum > tail || seqnum < head)
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        if (seqnum < head && seqnum > tail)
+        {
+            return 0;
+        }
+    }
+    if (head == tail && seqnum != head)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+/*
+* Check if the packet is a valid ack for the window
+* @returns 1 if yes, 0 if no
+*/
+int can_ack_window(window_pkt_t* window, uint8_t seqnum)
+{
+    const uint8_t head = window->seqnumHead;
+    const uint8_t tail = window->seqnumTail;
+
+    if (head < tail)
+    {
+        if (seqnum > tail + 1|| seqnum < head)
+        {
+            if (!(seqnum == 0 && tail == 255))
+            {
+                return 0;
+            }
+        }
+    }
+    else
+    {
+        if (seqnum < head && seqnum > tail + 1)
+        {
+            return 0;
+        }
+    }
+    if (head == tail && seqnum != head)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+void read_write_sender(const int sfd, const int fd, const int fd_stats, const int fec_enable)
 {
 
     copybuf = (char*) malloc(sizeof(char)*PKT_MAX_LEN);
     if (copybuf == NULL){
-        ERROR("Ne memoire");
+        ERROR("Malloc failed");
         return;
     }
 
@@ -417,8 +509,6 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats)
     fec->seqnum = 0;
 
     window_pkt_t *window = malloc(sizeof(window_pkt_t));
-    window->offset = 0;
-    window->pktnum = 0;
     window->seqnumHead = 0;
     window->seqnumTail = 0;
     window->seqnumNext = 0;
@@ -447,9 +537,10 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats)
         if ((fds[0].revents & POLLOUT))
         {
             if (!eof_reached && window->linkedList->size < window->windowsize){
-                retval = fill_window(fd, sfd, window);
+                retval = fill_window(fd, sfd, window, fec_enable);
             }
-            if (!lastPkt && eof_reached && window->linkedList->size < window->windowsize){
+            
+            if (!lastPkt && eof_reached && (window->linkedList->size < window->windowsize)){
                 lastPkt = 1;
                 retval = send_final_pkt(sfd, window);
             }
@@ -476,14 +567,26 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats)
                 if (pkt_get_type(pkt) == PTYPE_NACK)
                 {
                     ++nack_received;
-                    LOG_SENDER("Received nack with seqnum %d", pkt_get_seqnum(pkt));
+                    LOG_SENDER("[%3d] Received nack", pkt_get_seqnum(pkt));
                     retval = resent_nack(sfd, window, pkt_get_seqnum(pkt));
                 }
                 else if (pkt_get_type(pkt) == PTYPE_ACK)
                 {
                     ++ack_received;
-                    LOG_SENDER("Received ack with seqnum %d", pkt_get_seqnum(pkt));
+                    LOG_SENDER("[%3d] Received ack", pkt_get_seqnum(pkt));
+                    // if (pkt_get_seqnum(pkt) != window->seqnumNext && is_in_sender_window(window, pkt_get_seqnum(pkt)))
+                    // {
+                    //     LOG_SENDER("Resent packet %d after ack", pkt_get_seqnum(pkt));
+                    //     resent_nack(sfd, window, pkt_get_seqnum(pkt));
+                    //     ++data_sent;
+                    // }
                     retval = ack_window(window, pkt);
+
+                    if (retval == -1)
+                    {
+                        ++packet_ignored;
+                        LOG_SENDER("[%3d] Packet ignored (not in window)", pkt_get_seqnum(pkt));
+                    }
 
                     if (lastPkt && window->linkedList->size == 0)
                     {
