@@ -95,7 +95,7 @@ int linkedList_remove(linkedList_t* linkedList)
 }
 
 /*
-* Remove the node at the end
+* Remove the node at the end and delete it's associated packet
 */
 int linkedList_remove_end(linkedList_t* linkedList)
 {

@@ -6,17 +6,22 @@
 typedef struct window_pkt
 {
     uint8_t seqnumHead;
-    uint8_t seqnumTail;
+    uint8_t seqnumTail; // seqnum of the packet at the end of the linked list
     uint8_t seqnumNext;
-    int windowsize;
+    int windowsize;     // current size of the window
 
-    int offset;
-    uint64_t pktnum;
-
-    linkedList_t* linkedList;
+    linkedList_t* linkedList; // linked list with all the packet (by ascending order)
 } window_pkt_t;
 
 void print_window(window_pkt_t* window);
+
+/*
+* Check if the packet is in the window
+* @returns 1 if yes, 0 if no
+*/
+int is_in_sender_window(window_pkt_t* window, uint8_t seqnum);
+
+int can_ack_window(window_pkt_t* window, uint8_t seqnum);
 
 /*
 * Check if the packet can be removed from the window
@@ -31,6 +36,6 @@ int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
  *         stats_filename : the name of the file to write de stats
  * @return: as soon as stdin signals EOF
  */
-void read_write_sender(const int sfd, const int fd, const int fd_stats);
+void read_write_sender(const int sfd, const int fd, const int fd_stats, const int fec_enable);
 
 #endif

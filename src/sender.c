@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     }
 
     fd = open(filename, O_RDONLY);
-    if (!fd)
+    if (fd == -1)
     {
         ERROR("Unable to open file, error: %s", strerror(errno));
         return errno;
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
     }
 
     /* Process I/O */
-    read_write_sender(sfd, fd, fd_stats);
+    read_write_sender(sfd, fd, fd_stats, fec_enabled);
 
     if (fd_stats != STDERR_FILENO)
     {
