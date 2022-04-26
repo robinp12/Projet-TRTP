@@ -16,11 +16,11 @@
 
 char *buffer;
 static int eof_reached = 0;
-int lastSeqnum = 0;
-uint32_t lastTimestamp;
-int resent_ack = 1;
-uint32_t timestamp;
-int num_ack = 0;
+static int lastSeqnum = 0;
+static uint32_t lastTimestamp;
+static int resent_ack = 1;
+// static uint32_t timestamp;
+static int num_ack = 0;
 static int eof_seqnum = 0;
 
 /* Variables de stats */
@@ -62,17 +62,16 @@ void decrease_window(window_pkt_t *window)
 
     linkedList_t* list = window->linkedList;
     int i = 0;
-    print_window(window);
     while (list->size > window->windowsize)
     {
         linkedList_remove_end(list);
         ++i;
     }
-    print_window(window);
-    LOG_RECEIVER("Decreased window to %d, dropped %d packets", window->windowsize, i);
-
     if (i > 0)
         window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
+
+    LOG_RECEIVER("Decreased window to %d, dropped %d packets", window->windowsize, i);
+
 
     eof_reached = 0; // Because we might have removed the last packet (so the eof is no longer in the window)
 }
@@ -195,7 +194,6 @@ int is_in_window(window_pkt_t* window, uint8_t seqnum)
             {
                 ++packet_ignored;
                 LOG_RECEIVER("[%3d] Packet ignored (not in window)", seqnum);
-                print_window(window);
                 return 0;
             }
         }
@@ -206,7 +204,6 @@ int is_in_window(window_pkt_t* window, uint8_t seqnum)
         {
             ++packet_ignored;
             LOG_RECEIVER("Packet with seqnum %d ignored (not in window)", seqnum);
-            print_window(window);
             return 0;
         }
     }
@@ -214,7 +211,6 @@ int is_in_window(window_pkt_t* window, uint8_t seqnum)
     {
         ++packet_ignored;
         LOG_RECEIVER("Packet with seqnum %d ignored (not in window)", seqnum);
-        print_window(window);
         return 0;
     }
     
@@ -234,28 +230,13 @@ int is_seqnum_greater(uint8_t seqnumA, uint8_t seqnumB, window_pkt_t* window)
     {
         return seqnumA > seqnumB;
     }
+    
     else
     {
-        if (head == 255)
-        {
-            if (seqnumA == 255)
-                return 0;
-            return seqnumA > seqnumB;
-        }
-        if (seqnumA >= head && seqnumB >= head)
-        {
-            return seqnumA > seqnumB;
-        }
-        if (seqnumA <= head && seqnumB <= head)
-        {
-            return seqnumA > seqnumB;
-        }
-        if (seqnumA <= tail)
-        {
-            return 1;
-        }
+        const uint16_t newSeqnumA = (seqnumA < head) ? seqnumA + 256 : seqnumA;
+        const uint16_t newSeqnumB = (seqnumB < head) ? seqnumB + 256 : seqnumB;
+        return newSeqnumA > newSeqnumB;
     }
-    return 0;
 }
 
 /*
@@ -437,7 +418,7 @@ int flush_file(window_pkt_t* window)
     {
         if (pkt_get_length(current->pkt) == 0)
         {
-            LOG_RECEIVER("All packet wrote to the file");
+            LOG_RECEIVER("All packet sent to stdout");
             lastTimestamp = pkt_get_timestamp(current->pkt);
             window->seqnumHead = (window->seqnumHead + 1) % 256;
             return -1;
@@ -448,7 +429,7 @@ int flush_file(window_pkt_t* window)
             return -1;
         }
         ++packet_write;
-        LOG_RECEIVER("Wrote packet %d to stdout", pkt_get_seqnum(current->pkt));
+        LOG_RECEIVER("[%3d] Send to stdout", pkt_get_seqnum(current->pkt));
 
         window->seqnumHead = (window->seqnumHead + 1) % 256;
         if (list->size == 1)

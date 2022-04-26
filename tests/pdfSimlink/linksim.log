@@ -1,0 +1,13 @@
+@@ Using random seed: 1650978220
+@@ Using parameters:
+.. port: 2000
+.. forward_port: 2456
+.. delay: 10
+.. jitter: 3
+.. err_rate: 3
+.. cut_rate: 3
+.. loss_rate: 10
+.. seed: 1650978220
+.. link_direction: Both ways
+@@ Remote host is ::1 [51650]
+[SEQ   0] Dropping packet
