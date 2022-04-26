@@ -1,0 +1,77 @@
+[91m[ERROR] Receiver has following arguments: stats_filename is ./tests/smallImage/receiver.csv, listen_ip is ::, listen_port is 2456[0m
+[91m[ERROR] This is not an error, now let's code![0m
+[RECEIVER] [  0] Received data
+[RECEIVER] [  0] Add packet to the list
+[RECEIVER] [  0] Send to stdout
+[RECEIVER] [  1] Send ack
+[RECEIVER] [  2] Received data
+[RECEIVER] [  2] Add packet to the list
+[RECEIVER] [  1] Send ack
+[RECEIVER] [  1] Received data
+[RECEIVER] [  1] Add packet to the list
+[RECEIVER] [  1] Send to stdout
+[RECEIVER] [  2] Send to stdout
+[RECEIVER] [  3] Send ack
+[RECEIVER] [  3] Received data
+[RECEIVER] [  3] Add packet to the list
+[RECEIVER] [  3] Send to stdout
+[RECEIVER] [  4] Send ack
+[RECEIVER] [  5] Received data
+[RECEIVER] [  5] Add packet to the list
+[RECEIVER] [  4] Send ack
+[RECEIVER] [  6] Received data
+[RECEIVER] [  6] Add packet to the list
+[RECEIVER] [  4] Send ack
+[RECEIVER] Packet ignored due to bad CRC
+[RECEIVER] [  4] Received data
+[RECEIVER] [  4] Add packet to the list
+[RECEIVER] [  4] Send to stdout
+[RECEIVER] [  5] Send to stdout
+[RECEIVER] [  6] Send to stdout
+[RECEIVER] [  7] Send ack
+[RECEIVER] [  8] Received data
+[RECEIVER] [  8] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] [  9] Received data
+[RECEIVER] [  9] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] [ 11] Received data
+[RECEIVER] [ 11] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] [ 10] Received data
+[RECEIVER] [ 10] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] Packet ignored due to bad CRC
+[RECEIVER] [ 12] Received data
+[RECEIVER] [ 12] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] [  4] Packet ignored (not in window)
+[RECEIVER] [  7] Send ack
+[RECEIVER] [ 15] Received data
+[RECEIVER] [ 15] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] [  4] Packet ignored (not in window)
+[RECEIVER] [  7] Send ack
+[RECEIVER] [ 13] Received data
+[RECEIVER] [ 13] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] [ 16] Received data
+[RECEIVER] [ 16] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] [ 14] Received data
+[RECEIVER] [ 14] Add packet to the list
+[RECEIVER] [  7] Send ack
+[RECEIVER] [  7] Received data
+[RECEIVER] [  7] Add packet to the list
+[RECEIVER] [  7] Send to stdout
+[RECEIVER] [  8] Send to stdout
+[RECEIVER] [  9] Send to stdout
+[RECEIVER] [ 10] Send to stdout
+[RECEIVER] [ 11] Send to stdout
+[RECEIVER] [ 12] Send to stdout
+[RECEIVER] [ 13] Send to stdout
+[RECEIVER] [ 14] Send to stdout
+[RECEIVER] [ 15] Send to stdout
+[RECEIVER] All packet sent to stdout
+[RECEIVER] [ 17] Send ack
+[RECEIVER] End of transmission

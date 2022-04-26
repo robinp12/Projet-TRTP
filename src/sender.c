@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     int fd_stats;
     if (stats_filename != NULL)
     {
-        fd_stats = open(filename, O_WRONLY);
+        fd_stats = open(stats_filename, O_WRONLY | O_CREAT, S_IRWXO | S_IRWXU);
         if (fd_stats == -1)
         {
             ERROR("Unable to open stats file : %s", strerror(errno));

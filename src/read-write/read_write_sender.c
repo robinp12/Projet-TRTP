@@ -115,6 +115,9 @@ int fill_window(const int fd, const int sfd, window_pkt_t *window, const int fec
 
         pkt_set_timestamp(pkt, time_millis());
 
+        if (list->size == 0)
+            window->seqnumHead = sendingSeqnum;
+
         linkedList_add_pkt(list, pkt);
 
         size_t len = PKT_MAX_LEN;
@@ -228,7 +231,7 @@ void print_window(window_pkt_t* window){
 */
 int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
 {
-    const uint8_t head = window->seqnumHead;
+    const uint8_t head = (window->linkedList->size == 0) ? window->seqnumHead : pkt_get_seqnum(window->linkedList->head->pkt);
     const uint8_t tail = window->seqnumTail;
 
     if ((tail + 1) % 256 == ackSeqnum)
@@ -271,33 +274,13 @@ int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
 int ack_window(window_pkt_t *window, pkt_t* pkt)
 {
     const uint8_t ackSeqnum = pkt_get_seqnum(pkt);
-    // const uint8_t head = window->seqnumHead;
-    // const uint8_t tail = window->seqnumTail;
 
     if (!can_ack_window(window, ackSeqnum))
         return -1;
-    // if (head < tail)
-    // {
-    //     if (ackSeqnum > tail + 1 || ackSeqnum < head)
-    //     {
-    //         if (!(ackSeqnum == 0 && tail == 255))
-    //         {
-    //         return -1;
-    //         }
-    //     }
-    // }
-    // else
-    // {
-    //     if (ackSeqnum < head && ackSeqnum > tail + 1)
-    //     {
-    //         return -1;
-    //     }
-    // }
 
     linkedList_t* list = window->linkedList;
    
     node_t* current = list->head;
-    //node_t* previous = list->head;
     int no_acked = 0;
     uint32_t time = time_millis();
 
@@ -318,24 +301,9 @@ int ack_window(window_pkt_t *window, pkt_t* pkt)
         linkedList_remove(list);
 
         current = list->head;
-        //previous = list->head;
 
         if (list->size > 0)
-            window->seqnumHead = pkt_get_seqnum(current->pkt);
-
-        // else if (current == list->tail) {
-        //     ERROR("HERE");
-        //     linkedList_remove_end(list);
-            
-        //     if (list->size > 0)
-        //         window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
-        //     return no_acked++;
-        // }
-        // else {
-        //     linkedList_remove_middle(list, previous, current);
-        //     ERROR("ICI");
-        //     current = previous->next;
-        // }
+            window->seqnumHead = pkt_get_seqnum(list->head->pkt);
 
         no_acked++;
         if (list->size == 0){
@@ -423,7 +391,6 @@ int update_window(window_pkt_t* window, uint8_t newSize){
         lastPkt = 0;
         lastRst = 0;
     }
-    print_window(window);
     LOG_SENDER("Window decreased to %d", newSize);
     return 2;
 }
@@ -574,14 +541,14 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats, const in
                 {
                     ++ack_received;
                     LOG_SENDER("[%3d] Received ack", pkt_get_seqnum(pkt));
-                    // if (pkt_get_seqnum(pkt) != window->seqnumNext && is_in_sender_window(window, pkt_get_seqnum(pkt)))
-                    // {
-                    //     LOG_SENDER("Resent packet %d after ack", pkt_get_seqnum(pkt));
-                    //     resent_nack(sfd, window, pkt_get_seqnum(pkt));
-                    //     ++data_sent;
-                    // }
+                    if (pkt_get_seqnum(pkt) != window->seqnumNext && is_in_sender_window(window, pkt_get_seqnum(pkt)))
+                    {
+                        LOG_SENDER("Resent packet %d after ack", pkt_get_seqnum(pkt));
+                        resent_nack(sfd, window, pkt_get_seqnum(pkt));
+                        ++data_sent;
+                    }
                     retval = ack_window(window, pkt);
-
+                    print_window(window);
                     if (retval == -1)
                     {
                         ++packet_ignored;

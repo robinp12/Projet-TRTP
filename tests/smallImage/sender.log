@@ -1,0 +1,136 @@
+[91m[ERROR] Sender has following arguments: filename is tests/smallImage.jpg, stats_filename is ./tests/smallImage/sender.csv, fec_enabled is 0, receiver_ip is ::1, receiver_port is 2000[0m
+[SENDER] [  0] Packet sent and add to the list
+[SENDER] [  1] Received ack
+Head 0, tail 0, size (list) 1, size (window) 1   |  0 
+[SENDER] [  1] Packet ignored (not in window)
+[SENDER] Window increased to 5
+[SENDER] [  1] Packet sent and add to the list
+[SENDER] [  2] Packet sent and add to the list
+[SENDER] [  3] Packet sent and add to the list
+[SENDER] [  4] Packet sent and add to the list
+[SENDER] [  1] Received ack
+[SENDER] Resent packet 1 after ack
+[SENDER] [  1] Packet resent (nack)
+[SENDER] [  0] Packet remove from the list (acked)
+Head 1, tail 4, size (list) 4, size (window) 5   |  1  2  3  4 
+[SENDER] Window increased to 6
+[SENDER] [  5] Packet sent and add to the list
+[SENDER] [  6] Packet sent and add to the list
+[SENDER] [  4] Received ack
+[SENDER] Resent packet 4 after ack
+[SENDER] [  4] Packet resent (nack)
+[SENDER] [  1] Packet remove from the list (acked)
+[SENDER] [  2] Packet remove from the list (acked)
+[SENDER] [  3] Packet remove from the list (acked)
+Head 4, tail 6, size (list) 3, size (window) 6   |  4  5  6 
+[SENDER] Window increased to 8
+[SENDER] [  7] Packet sent and add to the list
+[SENDER] [  8] Packet sent and add to the list
+[SENDER] [  9] Packet sent and add to the list
+[SENDER] [ 10] Packet sent and add to the list
+[SENDER] [ 11] Packet sent and add to the list
+[SENDER] [  4] Received ack
+[SENDER] Resent packet 4 after ack
+[SENDER] [  4] Packet resent (nack)
+Head 4, tail 11, size (list) 8, size (window) 8   |  4  5  6  7  8  9  10  11 
+[SENDER] Window increased to 9
+[SENDER] [ 12] Packet sent and add to the list
+[SENDER] [  4] Received ack
+[SENDER] Resent packet 4 after ack
+[SENDER] [  4] Packet resent (nack)
+Head 4, tail 12, size (list) 9, size (window) 9   |  4  5  6  7  8  9  10  11  12 
+[SENDER] Window increased to 10
+[SENDER] [ 13] Packet sent and add to the list
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+[SENDER] [  4] Packet remove from the list (acked)
+[SENDER] [  5] Packet remove from the list (acked)
+[SENDER] [  6] Packet remove from the list (acked)
+Head 7, tail 13, size (list) 7, size (window) 10   |  7  8  9  10  11  12  13 
+[SENDER] Window increased to 12
+[SENDER] [ 14] Packet sent and add to the list
+[SENDER] [ 15] Packet sent and add to the list
+[SENDER] [ 16] End of file in read
+[SENDER] Final packet sent with seqnum 16
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 16, size (list) 10, size (window) 12   |  7  8  9  10  11  12  13  14  15  16 
+[SENDER] Window decreased to 11
+[SENDER] Final packet sent with seqnum 17
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 17, size (list) 11, size (window) 11   |  7  8  9  10  11  12  13  14  15  16  17 
+[SENDER] Window increased to 14
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 17, size (list) 11, size (window) 14   |  7  8  9  10  11  12  13  14  15  16  17 
+[SENDER] Window increased to 15
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 17, size (list) 11, size (window) 15   |  7  8  9  10  11  12  13  14  15  16  17 
+[SENDER] Window decreased to 13
+[SENDER] Final packet sent with seqnum 18
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 18, size (list) 12, size (window) 13   |  7  8  9  10  11  12  13  14  15  16  17  18 
+[SENDER] Window increased to 16
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 18, size (list) 12, size (window) 16   |  7  8  9  10  11  12  13  14  15  16  17  18 
+[SENDER] Window increased to 19
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 18, size (list) 12, size (window) 19   |  7  8  9  10  11  12  13  14  15  16  17  18 
+[SENDER] Window decreased to 17
+[SENDER] Final packet sent with seqnum 19
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 19, size (list) 13, size (window) 17   |  7  8  9  10  11  12  13  14  15  16  17  18  19 
+[SENDER] Window increased to 18
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 19, size (list) 13, size (window) 18   |  7  8  9  10  11  12  13  14  15  16  17  18  19 
+[SENDER] Window increased to 22
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 19, size (list) 13, size (window) 22   |  7  8  9  10  11  12  13  14  15  16  17  18  19 
+[SENDER] Window decreased to 20
+[SENDER] Final packet sent with seqnum 20
+[SENDER] [  7] Received ack
+[SENDER] Resent packet 7 after ack
+[SENDER] [  7] Packet resent (nack)
+Head 7, tail 20, size (list) 14, size (window) 20   |  7  8  9  10  11  12  13  14  15  16  17  18  19  20 
+[SENDER] Window increased to 21
+[SENDER] [ 17] Received ack
+[SENDER] Resent packet 17 after ack
+[SENDER] [ 17] Packet resent (nack)
+[SENDER] [  7] Packet remove from the list (acked)
+[SENDER] [  8] Packet remove from the list (acked)
+[SENDER] [  9] Packet remove from the list (acked)
+[SENDER] [ 10] Packet remove from the list (acked)
+[SENDER] [ 11] Packet remove from the list (acked)
+[SENDER] [ 12] Packet remove from the list (acked)
+[SENDER] [ 13] Packet remove from the list (acked)
+[SENDER] [ 14] Packet remove from the list (acked)
+[SENDER] [ 15] Packet remove from the list (acked)
+[SENDER] [ 16] Packet remove from the list (acked)
+Head 17, tail 20, size (list) 4, size (window) 21   |  17  18  19  20 
+[SENDER] Window increased to 23
+[SENDER] [ 18] Resent packet
+[SENDER] [ 19] Resent packet
+[SENDER] [ 20] Resent packet
+[SENDER] [ 17] Resent packet
+[SENDER] [ 18] Resent packet
+[SENDER] No news from receiver, last packet has been resent 4 times, assuming end of transmission
+2.30
