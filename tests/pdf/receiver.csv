@@ -3,10 +3,10 @@ data_received:711
 data_truncated_received:0
 fec_sent:0
 fec_received:0
-ack_sent:714
+ack_sent:524
 ack_received:0
 nack_sent:0
 nack_received:0
-packet_ignored:584
+packet_ignored:0
 packet_duplicated:0
-packet_recovered:0:0
+packet_recovered:0ed:0

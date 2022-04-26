@@ -1,5 +1,5 @@
 data_sent:0
-data_received:17
+data_received:18
 data_truncated_received:0
 fec_sent:0
 fec_received:0
@@ -7,6 +7,6 @@ ack_sent:19
 ack_received:0
 nack_sent:0
 nack_received:0
-packet_ignored:4
+packet_ignored:1
 packet_duplicated:0
-packet_recovered:00
+packet_recovered:0:0

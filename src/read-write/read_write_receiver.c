@@ -19,7 +19,7 @@ static int eof_reached = 0;
 static int lastSeqnum = 0;
 static uint32_t lastTimestamp;
 static int resent_ack = 1;
-static uint32_t timestamp;
+// static uint32_t timestamp;
 static int num_ack = 0;
 static int eof_seqnum = 0;
 
@@ -62,7 +62,6 @@ void decrease_window(window_pkt_t *window)
 
     linkedList_t* list = window->linkedList;
     int i = 0;
-    print_window(window);
     while (list->size > window->windowsize)
     {
         linkedList_remove_end(list);
@@ -71,7 +70,6 @@ void decrease_window(window_pkt_t *window)
     if (i > 0)
         window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
 
-    print_window(window);
     LOG_RECEIVER("Decreased window to %d, dropped %d packets", window->windowsize, i);
 
 

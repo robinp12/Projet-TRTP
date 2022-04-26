@@ -324,7 +324,7 @@ int resent_nack(const int sfd, window_pkt_t *window, uint8_t nack)
 
     if (!is_in_sender_window(window, nack))
     {
-        LOG_SENDER("[%3d] Failed to find packet on the list (nack)", nack);
+        LOG_SENDER("[%3d] Failed to find packet on the list", nack);
         return -1;
     }
 
@@ -333,7 +333,7 @@ int resent_nack(const int sfd, window_pkt_t *window, uint8_t nack)
         current = current->next;
     }
     if (current == NULL){
-        LOG_SENDER("[%3d] Failed to find packet on the list (nack)", nack);
+        LOG_SENDER("[%3d] Failed to find packet on the list", nack);
         return -1;
     }
 
@@ -345,7 +345,7 @@ int resent_nack(const int sfd, window_pkt_t *window, uint8_t nack)
 
     error = write(sfd, copybuf, len);
     if (error == -1) {return -1;}
-    LOG_SENDER("[%3d] Packet resent (nack)", nack);
+    LOG_SENDER("[%3d] Packet resent", nack);
     ++packet_retransmitted;
     return 0;
 }
@@ -386,11 +386,9 @@ int update_window(window_pkt_t* window, uint8_t newSize){
     
     window->seqnumTail = pkt_get_seqnum(list->tail->pkt);
 
-    if (lastPkt)
-    {
-        lastPkt = 0;
-        lastRst = 0;
-    }
+    eof_reached = 0;
+    lastPkt = 0;
+    lastRst = 0;
     LOG_SENDER("Window decreased to %d", newSize);
     return 2;
 }
@@ -528,7 +526,7 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats, const in
   
             pkt_t *pkt = pkt_new();
             retval = pkt_decode(copybuf, bytes_read, pkt);
-
+            lastRst = 0;
             if (retval == PKT_OK && pkt_get_tr(pkt) == 0)
             {
                 if (pkt_get_type(pkt) == PTYPE_NACK)
@@ -541,14 +539,14 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats, const in
                 {
                     ++ack_received;
                     LOG_SENDER("[%3d] Received ack", pkt_get_seqnum(pkt));
-                    if (pkt_get_seqnum(pkt) != window->seqnumNext && is_in_sender_window(window, pkt_get_seqnum(pkt)))
-                    {
-                        LOG_SENDER("Resent packet %d after ack", pkt_get_seqnum(pkt));
-                        resent_nack(sfd, window, pkt_get_seqnum(pkt));
-                        ++data_sent;
-                    }
+                    // if (pkt_get_seqnum(pkt) != window->seqnumNext && is_in_sender_window(window, pkt_get_seqnum(pkt)))
+                    // {
+                    //     LOG_SENDER("[%3d] Resent packet after ack", pkt_get_seqnum(pkt));
+                    //     resent_nack(sfd, window, pkt_get_seqnum(pkt));
+                    //     ++data_sent;
+                    // }
                     retval = ack_window(window, pkt);
-                    print_window(window);
+
                     if (retval == -1)
                     {
                         ++packet_ignored;
@@ -573,9 +571,6 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats, const in
             }
             
             pkt_del(pkt);
-        }
-        if (eof_reached && window->linkedList->size == 0){
-            
         }
     }
 
