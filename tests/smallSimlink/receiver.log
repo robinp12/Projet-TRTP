@@ -1,2 +1,0 @@
-[ERROR] Receiver has following arguments: stats_filename is ./tests/smallSimlink/receiver.csv, listen_ip is ::, listen_port is 2456
-[ERROR] This is not an error, now let's code!

@@ -70,3 +70,15 @@ zip:
 	zip -r $(ZIP_NAME) Makefile README.md src tests rapport.pdf gitlog.stat
 	# We remove it now, but you can leave it if you want.
 	rm gitlog.stat
+
+
+cleanTests:
+	rm -f tests/basic/*
+	rm -f tests/image/*
+	rm -f tests/imageSimlink/*
+	rm -f tests/pdf/*
+	rm -f tests/pdfSimlink/*
+	rm -f tests/random/*
+	rm -f tests/smallImage/*
+	rm -f tests/smallSimlink/*
+	rm -f tests/valgrind/*

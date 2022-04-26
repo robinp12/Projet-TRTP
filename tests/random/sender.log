@@ -1,2 +1,0 @@
-[ERROR] Sender has following arguments: filename is tests/random.txt, stats_filename is ./tests/random/sender.csv, fec_enabled is 0, receiver_ip is ::1, receiver_port is 2000
-6.89
