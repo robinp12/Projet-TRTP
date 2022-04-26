@@ -1,0 +1,12 @@
+data_sent:0
+data_received:106876
+data_truncated_received:5926
+fec_sent:0
+fec_received:0
+ack_sent:260837
+ack_received:0
+nack_sent:5926
+nack_received:0
+packet_ignored:325156
+packet_duplicated:62862
+packet_recovered:0

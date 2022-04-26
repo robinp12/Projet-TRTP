@@ -1,0 +1,14 @@
+data_sent:1411
+data_received:0
+data_truncated_received:0
+fec_sent:0
+fec_received:0
+ack_sent:0
+ack_received:714
+nack_sent:0
+nack_received:0
+packet_ignored:2
+min_rtt:0
+max_rtt:18
+packet_retransmitted:705
+2
