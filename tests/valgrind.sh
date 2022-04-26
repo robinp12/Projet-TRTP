@@ -3,11 +3,10 @@
 # cleanup d'un test précédent
 rm -f received_file
 
-input_file=$1
-test_name=$7
+input_file="./tests/image.jpg"
+test_name="valgrind"
 
-
-echo "=== Test with file ${input_file} ==="
+echo "=== Valgrind with file ${input_file} ==="
 
 filesize=$(ls -lh $input_file | awk '{print  $5}')
 echo "Size of the file : ${filesize}"
@@ -26,22 +25,16 @@ rm -f receiver_log
 rm -f sender_log
 rm -f linksim_log
 
-if [ $8 ]
-then
-linksim_log="/dev/null"
-fi
-
-
 # get size in bytes
 mysize=$(find "$input_file" -printf "%s")
 # get extension 
 extension="${input_file##*.}"
 
-delay=$2
-jitter=$3
-error=$4
-cut=$5
-loss=$6
+delay=50
+jitter=5
+error=3
+cut=2
+loss=10
 
 # On lance le simulateur de lien avec 10% de pertes et un délais de 50ms
 echo "link_sim démarré"
@@ -50,7 +43,7 @@ link_pid=$!
 
 # On lance le receiver et capture sa sortie standard
 echo "Receiver démarré"
-./receiver -s $receiver_csv :: 2456 1>received_file 2>$receiver_log &
+valgrind ./receiver -s $receiver_csv :: 2456 1>received_file 2>$receiver_log &
 receiver_pid=$!
 
 cleanup()
@@ -64,15 +57,9 @@ trap cleanup SIGINT  # Kill les process en arrière plan en cas de ^-C
 # On démarre le transfert
 echo "Sender démarré"
 
-# La durée de transmission est ajoutée à la fin des stats du sender (pas moyen de les séparer sans perdre les stats)
-/usr/bin/time --format="%e" ./sender -f $input_file -s $sender_csv ::1 2000 2>$sender_log
+valgrind ./sender -f $input_file -s $sender_csv ::1 2000 2>$sender_log
 
-if ! time_sender=$(tail $sender_log -n 1) ; then
-  echo "Crash du sender!"
-  err=1  # On enregistre l'erreur
-fi
 
-echo "Execution time of the sender : ${time_sender}"
 echo "En attente que le receiver finisse"
 sleep 5 # On attend 5 seconde que le receiver finisse
 
@@ -105,14 +92,14 @@ else
   echo " --> Le transfert est réussi!"
 fi
 
-if [ -s time_to_sender.csv ]
-then
-  echo "$extension ,$mysize, $time_sender ,$loss ,$delay ,$jitter ,$error ,$cut, $corrompu," >> time_to_sender.csv
-else
-  echo "extension ,size ,time_sender ,loss ,delay ,jitter ,error ,cut ,pkt_corrupted," >> time_to_sender.csv
-  echo "$extension ,$mysize, $time_sender ,$loss ,$delay ,$jitter ,$error ,$cut, $corrompu," >> time_to_sender.csv
-fi
-
-
 echo ""
-exit $corrompu
+echo ""
+echo "VALGRIND SENDER"
+tail $sender_log
+echo ""
+echo ""
+echo "VALGRIND RECEIVER"
+tail $receiver_log
+echo ""
+echo ""
+
