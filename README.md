@@ -28,13 +28,15 @@
 
 ./sender -f *input_file* :: 1234 
 
-## Lancer les tests (automatique ou avec paramètres symlink): 
+## Lancer les tests
 
-**make tests** 
 
-**make valgrind**
+**make tests**  pour lancer la suite de tests
+
+**make valgrind** pour lancer un test avec valgrind
 
 Pour lancer un test particulier
+
 ./tests/test.sh *input_file* *delay* *jitter* *error_rate* *cut* *loss* 
 
 ## Organisations des fichiers
