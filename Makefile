@@ -49,9 +49,14 @@ tests: all
 	make
 	./tests/run_tests.sh
 
-# By default, logs are disabled. But you can enable them with the debug target.
+valgrind: all
+	./tests/valgrind.sh
+
+# By default, debug are disabled. But you can enable them with the debug target.
 debug: CFLAGS += -D_DEBUG
 debug: clean all
+
+# Make nolog desactivate logs for the sender and receiver
 nolog: CFLAGS += -D_LOG_DISABLE
 nolog: clean all
 

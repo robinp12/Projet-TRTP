@@ -4,11 +4,12 @@ data_truncated_received:0
 fec_sent:0
 fec_received:0
 ack_sent:0
-ack_received:524
+ack_received:416
 nack_sent:0
 nack_received:0
 packet_ignored:2
 min_rtt:0
-max_rtt:3
-packet_retransmitted:6
-d:6874
+max_rtt:4
+packet_retransmitted:5
+85
+874
