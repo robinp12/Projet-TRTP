@@ -29,9 +29,12 @@ failed=$(($failed + $?))
 ((total++))
 
 echo "Test with random text file on perfect network"
+# Fichier au contenu aléatoire de 1MO
+dd if=/dev/urandom of=./tests/random.txt bs=1 count=1000000 &> /dev/null
 ./tests/test.sh tests/random.txt 0 0 0 0 0 random $log
 failed=$(($failed + $?))
 ((total++))
+rm ./tests/random.txt
 
 echo "Test with small jpg file on bad network"
 ./tests/test.sh tests/smallImage.jpg 50 5 5 2 10 smallImage $log

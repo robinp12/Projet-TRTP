@@ -73,15 +73,10 @@ int main(int argc, char **argv)
         return print_usage(argv[0]);
     }
 
-    // ASSERT(1 == 1);               // Try to change it to see what happens when it fails
-    // DEBUG_DUMP("Some bytes", 11); // You can use it with any pointer type
-
     // This is not an error per-se.
     ERROR("Sender has following arguments: filename is %s, stats_filename is %s, fec_enabled is %d, receiver_ip is %s, receiver_port is %u",
           filename, stats_filename, fec_enabled, receiver_ip, receiver_port);
 
-    // DEBUG("You can only see me if %s", "you built me using `make debug`");
-    // ERROR("This is not an error, %s", "now let's code!");
 
     /* From ingnious "Envoyer et recevoir des données" */
 
@@ -105,11 +100,18 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    fd = open(filename, O_RDONLY);
-    if (fd == -1)
+    if (filename != NULL)
     {
-        ERROR("Unable to open file, error: %s", strerror(errno));
-        return errno;
+        fd = open(filename, O_RDONLY);
+        if (fd == -1)
+        {
+            ERROR("Unable to open file, error: %s", strerror(errno));
+            return errno;
+        }
+    }
+    else
+    {
+        fd = STDIN_FILENO;
     }
 
     int fd_stats;
