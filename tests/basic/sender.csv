@@ -1,15 +1,16 @@
-data_sent:460
+data_sent:370
 data_received:0
 data_truncated_received:0
 fec_sent:0
 fec_received:0
 ack_sent:0
-ack_received:94
+ack_received:211
 nack_sent:0
 nack_received:0
 packet_ignored:1
 min_rtt:0
-max_rtt:4
-packet_retransmitted:90
-4
+max_rtt:6
+packet_retransmitted:0
 
+5
+33

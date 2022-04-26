@@ -4,10 +4,10 @@ CC = gcc
 # Feel free to add other C flags
 CFLAGS += -c -std=gnu99 -Wall -Werror -Wextra -O2 
 # By default, we colorize the output, but this might be ugly in log files, so feel free to remove the following line.
-CFLAGS += -D_COLOR -g
+# CFLAGS += -D_COLOR -g
 
 # You may want to add something here
-LDFLAGS += -lz
+LDFLAGS += -lz 
 
 # Adapt these as you want to fit with your project
 SENDER_SOURCES = $(wildcard src/sender.c src/log.c src/packet_implem.c src/fec.c src/read-write/*.c src/linkedList/linkedList.c)
@@ -39,13 +39,21 @@ clean:
 mrproper:
 	rm -f $(SENDER) $(RECEIVER)
 
-# It is likely that you will need to update this
+# Run all tests without printing log
+tests-nolog: all
+	make nolog
+	./tests/run_tests.sh -nolog
+
 tests: all
+	make clean
+	make
 	./tests/run_tests.sh
 
 # By default, logs are disabled. But you can enable them with the debug target.
 debug: CFLAGS += -D_DEBUG
 debug: clean all
+nolog: CFLAGS += -D_LOG_DISABLE
+nolog: clean all
 
 # Place the zip in the parent repository of the project
 ZIP_NAME="../projet1_Hardy_Paquet.zip"

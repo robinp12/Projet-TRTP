@@ -6,6 +6,7 @@ rm -f received_file input_file
 input_file=$1
 test_name=$7
 
+
 echo "=== Test with file ${input_file} ==="
 
 filesize=$(ls -lh $input_file | awk '{print  $5}')
@@ -18,6 +19,11 @@ sender_log="./tests/${test_name}/sender.log"
 sender_csv="./tests/${test_name}/sender.csv"
 
 linksim_log="./tests/${test_name}/linksim.log"
+
+if [ $8 ]
+then
+linksim_log="/dev/null"
+fi
 
 rm -f sender_log receiver_log sender_csv receiver_csv linksim_log
 
@@ -49,7 +55,7 @@ cleanup()
 {
     kill -9 $receiver_pid
     kill -9 $link_pid
-    exit 0
+    exit 1
 }
 trap cleanup SIGINT  # Kill les process en arrière plan en cas de ^-C
 
