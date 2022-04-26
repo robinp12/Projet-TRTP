@@ -63,15 +63,14 @@ TRTP
  |       |------basic/           |
  |       |------image/           |
  |       |------imageSimlink/    |
+ |       |------loop/            |
  |       |------pdf/             |
  |       |------pdfSimlink/      |--> Dossiers pour stocker les logs
  |       |------random/          |    des différents tests
+ |       |------ressources/      |
  |       |------smallImage/      |
  |       |------smallSimlink/    |
  |       |------valgrind/       _|
- |       |
- |       | [Divers fichiers pour les tests]
- |       |
  |       |------loop_test.sh
  |       |------run_tests.sh
  |       |------simple_test.sh

@@ -45,8 +45,7 @@ tests-nolog: all
 	./tests/run_tests.sh -nolog
 
 tests: all
-	make clean
-	make
+	make -s
 	./tests/run_tests.sh
 
 valgrind: all

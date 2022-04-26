@@ -18,48 +18,49 @@ echo "              (logs activés)"
 fi
 
 echo ""
-echo "Basic test with simlink inactive and text file"
-./tests/test.sh tests/test.txt 0 0 0 0 0 basic $log
+echo "[basic] Fichier text avec simlink"
+./tests/test.sh tests/ressources/test.txt 0 0 0 0 0 basic $log
 failed=$(($failed + $?))
 ((total++))
 
-echo "Test with simlink and text file"
-./tests/test.sh tests/small.txt 10 5 5 5 5 smallSimlink $log
+echo "[smallSimlink] Fichier text avec simlink"
+./tests/test.sh tests/ressources/small.txt 10 5 5 5 5 smallSimlink $log
 failed=$(($failed + $?))
 ((total++))
 
-echo "Test with random text file on perfect network"
+echo "[random] Fichier text aléatoire sur réseau parfait"
 # Fichier au contenu aléatoire de 1MO
-dd if=/dev/urandom of=./tests/random.txt bs=1 count=1000000 &> /dev/null
-./tests/test.sh tests/random.txt 0 0 0 0 0 random $log
+dd if=/dev/urandom of=./tests/ressources/random.txt bs=1 count=1000000 &> /dev/null
+./tests/test.sh tests/ressources/random.txt 0 0 0 0 0 random $log
 failed=$(($failed + $?))
 ((total++))
-rm ./tests/random.txt
+rm ./tests/ressources/random.txt
 
-echo "Test with small jpg file on bad network"
-./tests/test.sh tests/smallImage.jpg 50 5 5 2 10 smallImage $log
-failed=$(($failed + $?))
-((total++))
-
-echo "Test with jpg file on perfect network"
-./tests/test.sh tests/image.jpg 0 0 0 0 0 image $log
+echo "[smallImage] Petit fichier jpg avec simlink"
+./tests/test.sh tests/ressources/smallImage.jpg 50 5 5 2 10 smallImage $log
 failed=$(($failed + $?))
 ((total++))
 
-echo "Test with simlink and jpg file"
-./tests/test.sh tests/image.jpg 10 2 2 2 3 imageSimlink $log
+echo "[image] Fichier jpg sur réseau parfait"
+./tests/test.sh tests/ressources/image.jpg 0 0 0 0 0 image $log
 failed=$(($failed + $?))
 ((total++))
 
-echo "Test with pdf file on perfect network"
-./tests/test.sh tests/report_template_a3.pdf 0 0 0 0 0 pdf $log
+echo "[imageSimlink] Fichier jpg avec simlink"
+./tests/test.sh tests/ressources/image.jpg 10 2 2 2 3 imageSimlink $log
 failed=$(($failed + $?))
 ((total++))
 
-echo "Test with simlink and pdf file"
-./tests/test.sh tests/report_template_a3.pdf 10 3 3 3 10 pdfSimlink $log
+echo "[pdf] Fichier pdf sur réseau parfait"
+./tests/test.sh tests/ressources/report_template_a3.pdf 0 0 0 0 0 pdf $log
 failed=$(($failed + $?))
 ((total++))
 
+echo "[pdfSimlink] Fichier pdf avec simlink"
+./tests/test.sh tests/ressources/report_template_a3.pdf 10 3 3 3 10 pdfSimlink $log
+failed=$(($failed + $?))
+((total++))
+
+echo ""
 echo "==== ${failed} transfert(s) raté(s) sur ${total} tests ===="
 echo ""

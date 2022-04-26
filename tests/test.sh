@@ -7,10 +7,8 @@ input_file=$1
 test_name=$7
 
 
-echo "=== Test with file ${input_file} ==="
-
 filesize=$(ls -lh $input_file | awk '{print  $5}')
-echo "Size of the file : ${filesize}"
+echo "Taille du fichier : ${filesize}o"
 
 receiver_log="./tests/${test_name}/receiver.log"
 receiver_csv="./tests/${test_name}/receiver.csv"
@@ -75,7 +73,7 @@ if ! time_sender=$(tail $sender_log -n 1) ; then
   err=1  # On enregistre l'erreur
 fi
 
-echo "Execution time of the sender : ${time_sender}"
+echo "Temps d'exéction du sender : ${time_sender}s"
 echo "En attente que le receiver finisse"
 sleep 5 # On attend 5 seconde que le receiver finisse
 
@@ -108,13 +106,13 @@ else
   echo " --> Le transfert est réussi!"
 fi
 
-if [ -s time_to_sender.csv ]
-then
-  echo "$extension ,$mysize, $time_sender ,$loss ,$delay ,$jitter ,$error ,$cut, $corrompu," >> time_to_sender.csv
-else
-  echo "extension ,size ,time_sender ,loss ,delay ,jitter ,error ,cut ,pkt_corrupted," >> time_to_sender.csv
-  echo "$extension ,$mysize, $time_sender ,$loss ,$delay ,$jitter ,$error ,$cut, $corrompu," >> time_to_sender.csv
-fi
+# if [ -s time_to_sender.csv ]
+# then
+#   echo "$extension ,$mysize, $time_sender ,$loss ,$delay ,$jitter ,$error ,$cut, $corrompu," >> time_to_sender.csv
+# else
+#   echo "extension ,size ,time_sender ,loss ,delay ,jitter ,error ,cut ,pkt_corrupted," >> time_to_sender.csv
+#   echo "$extension ,$mysize, $time_sender ,$loss ,$delay ,$jitter ,$error ,$cut, $corrompu," >> time_to_sender.csv
+# fi
 
 
 echo ""
