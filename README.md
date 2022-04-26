@@ -1,35 +1,83 @@
-# My Wonderful LINFO1341 Project
+# LINFO1341 Projet TRTP
 
-### Compiler le programme (aussi DEBUG) :
-> make (debug)
+## Cibles du Make file
 
-### Lancer le programme : 
+**make** : créé les exécutables `sender` et `receiver` (cible par défaut)
 
-> ./receiver :: 1234 
+**make debug** : créé les exécutables `sender` et `receiver` en affichant les informations de debug (macro `DEBUG` désactivé)
 
-> ./sender -f *input_file* :: 1234 
+**make nolog** : créé les exécutables `sender` et `receiver`, sans afficher les logs (macros `LOG_SENDER` et `LOG_RECEIVER` désactivés). La sortie d'erreur contient alors uniquement les messages d'erreurs
 
-### Lancer les tests (automatique ou avec paramètres symlink): 
+**make tests** : lance une petite suite de tests, pour différents fichiers avec différents paramètres du simulateur de lien [link_sim](https://github.com/cnp3/Linksimulator). Les logs des différents tests sont disponibles dans le sous-dossier de tests correspondant
 
-> make tests 
+**make tests-nolog** : idem que make tests, mais désactive les logs
 
-> ./tests/test.sh *input_file* *delay* *jitter* *error_rate* *cut* *loss* 
+**make valgrind** : lance un test avec le simulateur de lien avec valgrind sur le sender et le receiver. La fin des logs sont affichés afin d'avoir le rapport de Valgrind sur le sender et receiver. L'entièreté des logs est sauvegardé dans tests/valgrind
 
-### Nettoyer les fichiers binaire : 
+**make clean** : supprime les fichiers objets
 
-> make .PHONY 
-## Performances 
+**make mrproper** : supprime les exécutables `sender` et `receiver`
 
-![Performances](/perf.png)
+**make cleanTests** : supprimes les logs créés par les tests
 
-## ``` Notes ```
+**make zip** : créer un fichier zip pour la soumission
 
-The Makefile contains all the required targets, but you might want to extend their behavior.
+## Lancer le programme : 
 
-Very basic skelettons of receiver and sender source files are present, have a look to understand how you can enable logging or not.
+./receiver :: 1234 
 
-A very simple test case is present, you probably want to update it.
+./sender -f *input_file* :: 1234 
 
-You might be interested in the link simulator that can be found at https://github.com/cnp3/Linksimulator
+## Lancer les tests (automatique ou avec paramètres symlink): 
 
-And finally, if this message is still there at your final submission, it looks like you forgot to provide a proper README.
+**make tests** 
+
+**make valgrind**
+
+Pour lancer un test particulier
+./tests/test.sh *input_file* *delay* *jitter* *error_rate* *cut* *loss* 
+
+## Organisations des fichiers
+
+```
+TRTP
+ |------src
+ |       |-----linkedList
+ |       |         |------linkedList.c (.h)
+ |       |         |------Makefile
+ |       |         |------test_linkedList.c (.h)
+ |       |-----read-write
+ |       |         |------create_socket.c (.h) 
+ |       |         |------read_write_receiver.c (.h) 
+ |       |         |------read_write_sender.c (.h) 
+ |       |         |------real_address.c (.h) 
+ |       |         |------wait_for_client.c (.h) 
+ |       |------fec.c (.h) 
+ |       |------log.c (.h) 
+ |       |------packet_implem.c (.h) 
+ |       |------receiver.c 
+ |       |------sender.c
+ |------tests                   _
+ |       |------basic/           |
+ |       |------image/           |
+ |       |------imageSimlink/    |
+ |       |------pdf/             |
+ |       |------pdfSimlink/      |--> Dossiers pour stocker les logs
+ |       |------random/          |    des différents tests
+ |       |------smallImage/      |
+ |       |------smallSimlink/    |
+ |       |------valgrind/       _|
+ |       |
+ |       | [Divers fichiers pour les tests]
+ |       |
+ |       |------loop_test.sh
+ |       |------run_tests.sh
+ |       |------simple_test.sh
+ |       |------valgrind.s
+ |------Assignment.pdf
+ |------link_sim
+ |------Makefile
+ |------rapport.pdf
+ |------README.md
+```
+

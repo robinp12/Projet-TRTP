@@ -1,2 +1,0 @@
-[ERROR] Sender has following arguments: filename is tests/report_template_a3.pdf, stats_filename is ./tests/pdf/sender.csv, fec_enabled is 0, receiver_ip is ::1, receiver_port is 2000
-5.04
