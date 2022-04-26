@@ -18,6 +18,9 @@
 ### Nettoyer les fichiers binaire : 
 
 > make .PHONY 
+## Performances 
+
+![Performances](/perf.png)
 
 ## ``` Notes ```
 
