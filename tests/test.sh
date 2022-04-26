@@ -62,8 +62,14 @@ cleanup()
 trap cleanup SIGINT  # Kill les process en arrière plan en cas de ^-C
 
 # On démarre le transfert
+<<<<<<< HEAD
 echo "Sender démarré"
 
+=======
+
+echo "Sender démarré"
+
+>>>>>>> 898159105e187241cf83eefecb0287104a651e05
 # La durée de transmission est ajoutée à la fin des stats du sender (pas moyen de les séparer sans perdre les stats)
 /usr/bin/time --format="%e" ./sender -f $input_file -s $sender_csv ::1 2000 2>$sender_log
 
@@ -115,4 +121,9 @@ fi
 
 
 echo ""
+<<<<<<< HEAD
 exit $corrompu
+=======
+exit $corrompu
+
+>>>>>>> 898159105e187241cf83eefecb0287104a651e05

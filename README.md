@@ -1,19 +1,28 @@
 # My Wonderful LINFO1341 Project
 
+### Compiler le programme (aussi DEBUG) :
+> make (debug)
 
-Pour lancer le receiver :
-``` ./receiver ::1 2000 ```
+### Lancer le programme : 
 
-Pour lancer le sender :
-``` ./sender -f README.md ::1 2000 ```
+> ./receiver :: 1234 
 
+> ./sender -f *input_file* :: 1234 
 
-### Notes
-Compile sender :
-``` gcc sender.c read-write/*.c packet_implem.c -o sender -lz ```
+### Lancer les tests (automatique ou avec paramètres symlink): 
 
-Compile receiver :
-``` gcc receiver.c read-write/*.c packet_implem.c -o receiver -lz ```
+> make tests 
+
+> ./tests/test.sh *input_file* *delay* *jitter* *error_rate* *cut* *loss* 
+
+### Nettoyer les fichiers binaire : 
+
+> make .PHONY 
+## Performances 
+
+![Performances](/perf.png)
+
+## ``` Notes ```
 
 The Makefile contains all the required targets, but you might want to extend their behavior.
 
