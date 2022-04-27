@@ -7,7 +7,6 @@ typedef struct window_pkt
 {
     uint8_t seqnumHead;
     uint8_t seqnumTail; // seqnum of the packet at the end of the linked list
-    uint8_t seqnumNext;
     int windowsize;     // current size of the window
 
     linkedList_t* linkedList; // linked list with all the packet (by ascending order)

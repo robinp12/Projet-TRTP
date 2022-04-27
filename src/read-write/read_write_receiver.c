@@ -145,8 +145,6 @@ int send_troncated_nack(const int sfd, pkt_t *pkt, window_pkt_t *window)
 
 int send_ack(const int sfd, uint32_t timestamp, window_pkt_t *window)
 {
-    increase_window(window);
-
     int ack_status = send_response(sfd, PTYPE_ACK, window->seqnumHead, window, timestamp);
 
     if (ack_status != PKT_OK)
@@ -439,6 +437,7 @@ int receive_data(const int sfd, window_pkt_t* window)
                 }
                 if (window->seqnumHead == seqnum)
                 {
+                    increase_window(window);
                     resent_ack = 0;
                     return 0;
                 }
@@ -581,10 +580,9 @@ void read_write_receiver(const int sfd, const int fd_stats)
 
     window_pkt_t *window = malloc(sizeof(window_pkt_t));
     
-    window->seqnumNext = 0;
     window->seqnumHead = 0;
     window->seqnumTail = 0;
-    window->windowsize = 4;
+    window->windowsize = 1;
     window->linkedList = linkedList_create();
 
     if (window->linkedList == NULL)

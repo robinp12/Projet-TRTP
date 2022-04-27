@@ -43,7 +43,7 @@ mrproper:
 tests-nolog:
 	./tests/run_tests.sh -nolog
 
-tests:
+tests: all
 	./tests/run_tests.sh
 
 valgrind: all
