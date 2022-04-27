@@ -40,12 +40,10 @@ mrproper:
 	rm -f $(SENDER) $(RECEIVER)
 
 # Run all tests without printing log
-tests-nolog: all
-	make nolog
+tests-nolog:
 	./tests/run_tests.sh -nolog
 
-tests: all
-	make -s
+tests:
 	./tests/run_tests.sh
 
 valgrind: all
@@ -80,3 +78,4 @@ cleanTests:
 	rm -f tests/smallImage/*
 	rm -f tests/smallSimlink/*
 	rm -f tests/valgrind/*
+	rm -f tests/loop/*

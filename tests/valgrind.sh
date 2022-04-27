@@ -3,7 +3,7 @@
 # cleanup d'un test précédent
 rm -f received_file
 
-input_file="./tests/image.jpg"
+input_file="./tests/ressources/image.jpg"
 test_name="valgrind"
 
 echo "=== Valgrind with file ${input_file} ==="

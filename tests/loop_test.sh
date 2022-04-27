@@ -1,24 +1,36 @@
-for i in {1..9}
+
+
+# Tests pour observer l'impact des différents paramètres du linksim sur le transfert
+
+# Reference
+./tests/test.sh tests/ressources/test.txt 0 0 0 0 0 loop -nolog
+
+# Delai
+for i in {1..10}
 do
-    ./tests/test.sh tests/small.txt $(($i*10)) 0 0 0 0 loop
+    ./tests/test.sh tests/ressources/test.txt $(($i*5)) 0 0 0 0 loop -nolog
 done
 
-for i in {1..9}
+# Delay + jitter
+for i in {1..10}
 do
-    ./tests/test.sh tests/small.txt 10 $(($i*10)) 0 0 0 lopp
+    ./tests/test.sh tests/ressources/test.txt 50 $(($i*2)) 0 0 0 loop -nolog
 done
 
-for i in {1..9}
+# Error rate
+for i in {1..10}
 do
-    ./tests/test.sh tests/small.txt 0 0 $(($i*10)) 0 0 loop
+    ./tests/test.sh tests/ressources/test.txt 0 0 $(($i*5)) 0 0 loop -nolog
 done
 
-for i in {1..9}
+# Cut
+for i in {1..10}
 do
-    ./tests/test.sh tests/small.txt 0 0 0 $(($i*10)) 0 loop
+    ./tests/test.sh tests/ressources/test.txt 0 0 0 $(($i*5)) 0 loop -nolog
 done
 
-for i in {1..9}
+# Loss
+for i in {1..10}
 do
-    ./tests/test.sh tests/small.txt 0 0 0 0 $(($i*10)) loop
+    ./tests/test.sh tests/ressources/test.txt 0 0 0 0 $(($i*5)) loop -nolog
 done

@@ -13,10 +13,11 @@
 #include "../packet_implem.h"
 #include "../linkedList/linkedList.h"
 #include "../log.h"
+#include "../fec.h"
 
 char *buffer;
 static int eof_reached = 0;
-static int lastSeqnum = 0;
+//static int lastSeqnum = 0;
 static uint32_t lastTimestamp;
 static int resent_ack = 1;
 // static uint32_t timestamp;
@@ -161,21 +162,6 @@ int send_ack(const int sfd, uint32_t timestamp, window_pkt_t *window)
     return EXIT_SUCCESS;
 }
 
-/* Ecrire les données recues dans le systeme de fichier */
-int write_payload(pkt_t *pkt)
-{
-    int wr = write(STDOUT_FILENO, pkt_get_payload(pkt), pkt_get_length(pkt));
-    if (wr == -1)
-    {
-        return EXIT_FAILURE;
-    }
-
-    num_ack++;
-    lastSeqnum = pkt_get_seqnum(pkt) + 1;
-
-    return EXIT_SUCCESS;
-}
-
 
 /*
 * Check if the packet is in the window
@@ -301,6 +287,101 @@ int linkedList_add_increasing(window_pkt_t* window, pkt_t* pkt)
 }
 
 /*
+* Deal with the FEC packet
+* @returns -1 if useless, the seqnum of the recovered packet if used
+*/
+int deal_with_fec(window_pkt_t* window, pkt_t* fec_pkt)
+{
+    linkedList_t* list = window->linkedList;
+    const uint8_t seqnum = pkt_get_seqnum(fec_pkt);
+    print_window(window);
+
+    if (list->size < 3)
+        return -1;
+
+    node_t* current = list->head;
+    while (current != NULL)
+    {
+        if (pkt_get_seqnum(current->pkt) == seqnum || (pkt_get_seqnum(current->pkt) + 1) % 256 == seqnum)
+            break; // found packet n
+
+        if (current == list->tail)
+            return -1; 
+        current = current->next;
+    }
+
+    if (current == list->tail)
+        return -1;
+    
+    if (pkt_get_seqnum(current->next->pkt) == seqnum)
+        current = current->next;
+
+    LOG_RECEIVER("Start of the fec sequence %d", pkt_get_seqnum(current->pkt));
+    const uint8_t nSeqnum = pkt_get_seqnum(current->pkt);
+
+    pkt_t* pkts[3] = {};
+    int missingSeqnum = -1;
+    int i = 0;
+    for (int j = 0; j < 4; j++)
+    {
+        const uint8_t currentSeqnum = pkt_get_seqnum(current->pkt);
+        LOG_RECEIVER("Current %d, nseqnum+i %d", currentSeqnum, (nSeqnum+j)%256);
+        if (currentSeqnum != (nSeqnum + j) % 256)
+        {
+            missingSeqnum = (nSeqnum + j) % 256;
+            LOG_RECEIVER("missing %d", missingSeqnum);
+            ++j;
+        }
+
+        LOG_RECEIVER("i %d seq %d", i, currentSeqnum);
+        pkts[i] = current->pkt;
+        ++i;
+
+        if (current == list->tail)
+        {
+            if (i == 3 && missingSeqnum == -1)
+            {
+                missingSeqnum = (window->seqnumTail + 1) % 256;
+                break;
+            }
+            return -1;
+        }
+        else
+        {
+            current = current->next;
+        }
+
+    }
+
+    if (i != 3)
+    {
+        LOG_RECEIVER("i != 2");
+        return -1;
+    }
+    LOG_RECEIVER("FEC found : %d, %d, %d", pkt_get_seqnum(pkts[0]), pkt_get_seqnum(pkts[1]), pkt_get_seqnum(pkts[2]));
+    
+    pkt_t* pkt_restored = fec_generation(pkts[0], pkts[1], pkts[2], fec_pkt);
+    pkt_set_seqnum(pkt_restored, missingSeqnum);
+    linkedList_add_increasing(window, pkt_restored);
+
+    LOG_RECEIVER("[%3d] Add packet to the list (FEC)", pkt_get_seqnum(pkt_restored));
+    // if (pkt_get_length(pkt_restored) == 0)
+    // {
+    //     eof_reached = 1;
+    //     eof_seqnum = missingSeqnum;
+    // }
+    if (window->seqnumHead == missingSeqnum)
+    {
+        resent_ack = 0;
+    }
+    else
+    {
+        resent_ack = 1;
+    }
+    return missingSeqnum;
+}
+
+/*
 * Deal with the incoming data
 */
 int receive_data(const int sfd, window_pkt_t* window)
@@ -332,8 +413,6 @@ int receive_data(const int sfd, window_pkt_t* window)
         return -1;
     }
     
-
-
     switch (pkt_get_type(pkt))
     {
     case PTYPE_DATA:
@@ -384,7 +463,47 @@ int receive_data(const int sfd, window_pkt_t* window)
             resent_ack = 1;
         }
         break;
-    
+    case PTYPE_FEC:
+        
+        uint8_t fecSeqnum = pkt_get_seqnum(pkt);
+        
+        if (0)
+        {
+            LOG_RECEIVER("[%3d] Fec ignored (not enabled)", fecSeqnum);
+            ++packet_ignored;
+            pkt_del(pkt);
+            return -1;
+        }
+        
+        if (pkt_get_tr(pkt) == 1)
+        {
+            LOG_RECEIVER("[%3d] Fec ignored (truncated)", fecSeqnum);
+            ++packet_ignored;
+            pkt_del(pkt);
+            return -1;
+        }
+        if (! is_in_window(window, fecSeqnum))
+        {
+            LOG_RECEIVER("[%3d] Fec ignored (not in window)", fecSeqnum);
+            ++packet_ignored;
+            pkt_del(pkt);
+            return -1;
+        }
+        ++fec_received;
+
+        int fec_retval = deal_with_fec(window, pkt);
+        if(fec_retval != -1)
+        {
+            ++packet_recovered;
+            LOG_RECEIVER("[%3d] Packet restored with FEC", fec_retval);
+        }
+        else
+        {
+            LOG_RECEIVER("[%3d] Failed to use FEC", fecSeqnum);
+        }
+        pkt_del(pkt);
+
+        break;
     default:
         LOG_RECEIVER("Packet with unknow type (%d) ignored", pkt_get_type(pkt));
         ++packet_ignored;
@@ -418,7 +537,7 @@ int flush_file(window_pkt_t* window)
     {
         if (pkt_get_length(current->pkt) == 0)
         {
-            LOG_RECEIVER("All packet sent to stdout");
+            LOG_RECEIVER("[%3d] All packet sent to stdout", pkt_get_seqnum(current->pkt));
             lastTimestamp = pkt_get_timestamp(current->pkt);
             window->seqnumHead = (window->seqnumHead + 1) % 256;
             return -1;
@@ -537,7 +656,7 @@ void read_write_receiver(const int sfd, const int fd_stats)
     dprintf(fd_stats, "nack_received:%d\n", nack_received);
     dprintf(fd_stats, "packet_ignored:%d\n", packet_ignored);
     dprintf(fd_stats, "packet_duplicated:%d\n", packet_duplicated);
-    dprintf(fd_stats, "packet_recovered:%d", packet_recovered);
+    dprintf(fd_stats, "packet_recovered:%d\n", packet_recovered);
 
 
 

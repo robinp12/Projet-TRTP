@@ -1,6 +1,6 @@
 # LINFO1341 Projet TRTP
 
-## Cibles du Make file
+## Cibles du Makefile
 
 **make** : créé les exécutables `sender` et `receiver` (cible par défaut)
 
@@ -65,8 +65,8 @@ TRTP
  |       |------imageSimlink/    |
  |       |------loop/            |
  |       |------pdf/             |
- |       |------pdfSimlink/      |--> Dossiers pour stocker les logs
- |       |------random/          |    des différents tests
+ |       |------pdfSimlink/      |--> Dossiers pour stocker les logs et
+ |       |------random/          |    ressources des différents tests
  |       |------ressources/      |
  |       |------smallImage/      |
  |       |------smallSimlink/    |

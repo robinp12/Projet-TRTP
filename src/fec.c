@@ -1,5 +1,5 @@
 #include "fec.h"
-
+#include "log.h"
 void fill_pkt(uint16_t larger, const char *payload)
 {
     uint16_t len = strlen(payload) - larger + 1;
@@ -37,7 +37,10 @@ pkt_t *fec_generation(
     }
 
     // xor length
-    uint16_t xor_length = length_pkt[0] ^ length_pkt[1] ^ length_pkt[2] ^ length_pkt[3];
+    uint16_t xor_length = length_pkt[0];
+    xor_length = xor_length ^ length_pkt[1];
+    xor_length = xor_length ^ length_pkt[2];
+    xor_length = xor_length ^ length_pkt[3];
 
     // remplir de zero les pkt plus petits
     // fill_pkt(larger_pkt, payload_pkt[0]);
@@ -64,7 +67,9 @@ pkt_t *fec_generation(
 
     pkt_t *fec_pkt = pkt_new();
     pkt_set_length(fec_pkt, xor_length);
-    pkt_set_payload(fec_pkt, xor_payload, sizeof(xor_payload));
+    LOG_SENDER("len %d", xor_length);
+    LOG_SENDER("payload %s", xor_payload);
+    pkt_set_payload(fec_pkt, xor_payload, MAX_PAYLOAD_SIZE);
     pkt_set_seqnum(fec_pkt, seq_number);
 
     return fec_pkt;
