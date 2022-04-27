@@ -464,9 +464,9 @@ int receive_data(const int sfd, window_pkt_t* window)
         break;
     case PTYPE_FEC:
         
-        if (0)
+        if (1)
         {
-            LOG_RECEIVER("[%3d] Fec ignored (not enabled)", pkt_get_seqnum(pkt));
+            LOG_RECEIVER("[%3d] Fec ignored (not implemented properly)", pkt_get_seqnum(pkt));
             ++packet_ignored;
             pkt_del(pkt);
             return -1;

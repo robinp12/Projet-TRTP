@@ -63,15 +63,8 @@ int main(int argc, char **argv)
         return print_usage(argv[0]);
     }
 
-    ASSERT(1 == 1);               // Try to change it to see what happens when it fails
-    DEBUG_DUMP("Some bytes", 11); // You can use it with any pointer type
-
-    // This is not an error per-se.
-    ERROR("Receiver has following arguments: stats_filename is %s, listen_ip is %s, listen_port is %u",
+    LOG_RECEIVER("Receiver has following arguments: stats_filename is %s, listen_ip is %s, listen_port is %u",
           stats_filename, listen_ip, listen_port);
-
-    DEBUG("You can only see me if %s", "you built me using `make debug`");
-    ERROR("This is not an error, %s", "now let's code!");
 
     /* Resolve the hostname */
     char str[INET6_ADDRSTRLEN];
@@ -90,7 +83,6 @@ int main(int argc, char **argv)
     int sfd;
     sfd = create_socket(&listener_addr, listen_port, NULL, -1); /* Connected */
 
-    DEBUG("Waiting for client");
     if (sfd > 0 && wait_for_client(sfd) < 0)
     { /* Connected */
         ERROR("Could not connect the socket after the first message.\n");
@@ -98,7 +90,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    DEBUG("Socket connected");
+    LOG_RECEIVER("Socket connected");
     if (sfd < 0)
     {
         fprintf(stderr, "Failed to create the socket!: %s\n", strerror(errno));

@@ -14,13 +14,15 @@
 #include "../log.h"
 #include "../fec.h"
 
-#define TIMEOUT 1000        // timeout to resent pkt
-#define MAX_RESENT_LAST_PKT 4  // number of time we have to resent the last packet before ending the transmission
+#define TIMEOUT 2000            // timeout to resent pkt
+#define MAX_RESENT_LAST_PKT 4   // number of time we have to resent the last packet before ending the transmission
+#define MAX_RESENT_FIRST_PKT 10 // number of time we have to resent the first packet before cancelling the transmission
 
 static char *copybuf;
 static int eof_reached = 0;    // flag for the end of file
 static int lastPkt = 0;        // flag to send the last packet (end of file and all packets are send)
 static int lastRst = 0;        // number of time the last packet has been resent
+static int initRst = 0;        // number of time the first packet has been resent
 
 static uint64_t global_pkt = 0;  // number of char[MAX_PAYLOAD_SIZE] read to the source file
 static fec_pkt_t* fec;
@@ -498,7 +500,7 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats, const in
     window->windowsize = 1;
     window->linkedList = linkedList_create();
 
-    struct pollfd *fds = malloc(sizeof(*fds));
+    struct pollfd *fds = malloc(sizeof(struct pollfd));
     int ndfs = 1;
 
     memset(fds, 0, sizeof(struct pollfd));
