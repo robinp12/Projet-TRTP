@@ -22,7 +22,6 @@ static char *copybuf;
 static int eof_reached = 0;    // flag for the end of file
 static int lastPkt = 0;        // flag to send the last packet (end of file and all packets are send)
 static int lastRst = 0;        // number of time the last packet has been resent
-static int initRst = 0;        // number of time the first packet has been resent
 
 static uint64_t global_pkt = 0;  // number of char[MAX_PAYLOAD_SIZE] read to the source file
 static fec_pkt_t* fec;

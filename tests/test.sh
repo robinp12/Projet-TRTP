@@ -108,10 +108,10 @@ fi
 
 if [ -s tests/ressources/loop_stats.csv ]
 then
-  echo "${extension},${mysize},${time_sender},${loss},${delay},${jitter},${error},${cut},${corrompu}" >> tests/ressources/loop_stats.csv
+  echo "${extension},${mysize},${time_sender},${loss},${delay},${jitter},${error},${cut},${corrompu}" >> tests/ressources/perfect_stats.csv
 else
-  echo "extension,size,time_sender,loss,delay,jitter,error,cut,pkt_corrupted" >> time_to_sender.csv
-  echo "${extension},${mysize},${time_sender},${loss},${delay},${jitter},${error},${cut},${corrompu}" >> tests/ressources/loop_stats.csv
+  echo "extension,size,time_sender,loss,delay,jitter,error,cut,pkt_corrupted" >> tests/ressources/perfect_stats.csv
+  echo "${extension},${mysize},${time_sender},${loss},${delay},${jitter},${error},${cut},${corrompu}" >> tests/ressources/perfect_stats.csv
 fi
 
 
