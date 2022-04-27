@@ -232,7 +232,11 @@ void print_window(window_pkt_t* window){
 int seqnum_in_window(window_pkt_t* window, uint8_t ackSeqnum, uint8_t pktSeqnum)
 {
     const uint8_t head = (window->linkedList->size == 0) ? window->seqnumHead : pkt_get_seqnum(window->linkedList->head->pkt);
-    const uint8_t tail = window->seqnumTail;
+    const uint16_t tail = (window->seqnumTail < head) ? window->seqnumTail + 256 : window->seqnumTail;
+    const uint16_t ack = (ackSeqnum < head) ? ackSeqnum + 256 : ackSeqnum;
+    const uint16_t pkt = (pktSeqnum < head) ? pktSeqnum + 256 : pktSeqnum;
+
+    return pkt < ack;
 
     if ((tail + 1) % 256 == ackSeqnum)
         return 1;
@@ -438,13 +442,18 @@ int is_in_sender_window(window_pkt_t* window, uint8_t seqnum)
 int can_ack_window(window_pkt_t* window, uint8_t seqnum)
 {
     const uint8_t head = window->seqnumHead;
-    const uint8_t tail = window->seqnumTail;
+    const uint16_t tail = (window->seqnumTail < head) ? window->seqnumTail + 256 : window->seqnumTail;
+    const uint16_t newSeqnum = (seqnum < head) ? seqnum + 256 : seqnum;
+
+    if (newSeqnum < tail + 31)
+        return 1;
+    return 0;
 
     if (head < tail)
     {
-        if (seqnum < head)
+        if (newSeqnum < head)
         {
-            if (!(seqnum == 0 && tail == 255))
+            if (!(newSeqnum == 0 && tail == 255))
             {
                 return 0;
             }
@@ -454,8 +463,6 @@ int can_ack_window(window_pkt_t* window, uint8_t seqnum)
     {
         const uint16_t newSeqnum = (seqnum < head) ? seqnum + 256 : seqnum;
         const uint16_t newTail = tail + 256;
-        print_window(window);
-        LOG_SENDER("seqnum %d", seqnum);
         
         if (newSeqnum < head || newSeqnum > newTail + 31)
         {
@@ -538,30 +545,38 @@ void read_write_sender(const int sfd, const int fd, const int fd_stats, const in
             pkt_t *pkt = pkt_new();
             retval = pkt_decode(copybuf, bytes_read, pkt);
             lastRst = 0;
+
             if (retval == PKT_OK && pkt_get_tr(pkt) == 0)
             {
+                const uint8_t incomingSeqnum = pkt_get_seqnum(pkt);
+
                 retval = update_window(window, pkt_get_window(pkt));
                 if (retval == -1)
                     ERROR("Failed to update window size from %d to %d", window->windowsize, pkt_get_window(pkt));
 
                 if (pkt_get_type(pkt) == PTYPE_NACK)
                 {
+                    if (!is_in_sender_window(window, incomingSeqnum))
+                    {
+                        ++packet_ignored;
+                        pkt_del(pkt);
+                        continue;;
+                    }
+
                     ++nack_received;
-                    LOG_SENDER("[%3d] Received nack", pkt_get_seqnum(pkt));
-                    //retval = resent_nack(sfd, window, pkt_get_seqnum(pkt));
+                    LOG_SENDER("[%3d] Received nack", incomingSeqnum);
                 }
                 else if (pkt_get_type(pkt) == PTYPE_ACK)
                 {
                     ++ack_received;
-                    LOG_SENDER("[%3d] Received ack", pkt_get_seqnum(pkt));
+                    LOG_SENDER("[%3d] Received ack", incomingSeqnum);
 
                     retval = ack_window(window, pkt);
 
                     if (retval == -1)
                     {
                         ++packet_ignored;
-                        LOG_SENDER("[%3d] Packet ignored (not in window or wrong window size)", pkt_get_seqnum(pkt));
-                        print_window(window);
+                        LOG_SENDER("[%3d] Packet ignored (not in window or wrong window size)", incomingSeqnum);
                     }
 
                     if (lastPkt && window->linkedList->size == 0)
