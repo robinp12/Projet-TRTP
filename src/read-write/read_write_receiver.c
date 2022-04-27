@@ -464,11 +464,9 @@ int receive_data(const int sfd, window_pkt_t* window)
         break;
     case PTYPE_FEC:
         
-        uint8_t fecSeqnum = pkt_get_seqnum(pkt);
-        
         if (0)
         {
-            LOG_RECEIVER("[%3d] Fec ignored (not enabled)", fecSeqnum);
+            LOG_RECEIVER("[%3d] Fec ignored (not enabled)", pkt_get_seqnum(pkt));
             ++packet_ignored;
             pkt_del(pkt);
             return -1;
@@ -476,14 +474,14 @@ int receive_data(const int sfd, window_pkt_t* window)
         
         if (pkt_get_tr(pkt) == 1)
         {
-            LOG_RECEIVER("[%3d] Fec ignored (truncated)", fecSeqnum);
+            LOG_RECEIVER("[%3d] Fec ignored (truncated)", pkt_get_seqnum(pkt));
             ++packet_ignored;
             pkt_del(pkt);
             return -1;
         }
-        if (! is_in_window(window, fecSeqnum))
+        if (! is_in_window(window, pkt_get_seqnum(pkt)))
         {
-            LOG_RECEIVER("[%3d] Fec ignored (not in window)", fecSeqnum);
+            LOG_RECEIVER("[%3d] Fec ignored (not in window)", pkt_get_seqnum(pkt));
             ++packet_ignored;
             pkt_del(pkt);
             return -1;
@@ -498,7 +496,7 @@ int receive_data(const int sfd, window_pkt_t* window)
         }
         else
         {
-            LOG_RECEIVER("[%3d] Failed to use FEC", fecSeqnum);
+            LOG_RECEIVER("[%3d] Failed to use FEC", pkt_get_seqnum(pkt));
         }
         pkt_del(pkt);
 
